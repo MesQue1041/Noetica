@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A58953932E585544005DEB1F /* Noetica.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Noetica.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A58953A82E585545005DEB1F /* NoeticaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoeticaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A58953B22E585545005DEB1F /* NoeticaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoeticaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		84ED1E972E684D5200566642 /* Noetica.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Noetica.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		84ED1E982E684D5200566642 /* NoeticaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoeticaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		84ED1E992E684D5200566642 /* NoeticaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoeticaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,18 +78,10 @@
 				A58953952E585544005DEB1F /* Noetica */,
 				A58953AB2E585545005DEB1F /* NoeticaTests */,
 				A58953B52E585545005DEB1F /* NoeticaUITests */,
-				A58953942E585544005DEB1F /* Products */,
+				84ED1E972E684D5200566642 /* Noetica.app */,
+				84ED1E982E684D5200566642 /* NoeticaTests.xctest */,
+				84ED1E992E684D5200566642 /* NoeticaUITests.xctest */,
 			);
-			sourceTree = "<group>";
-		};
-		A58953942E585544005DEB1F /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A58953932E585544005DEB1F /* Noetica.app */,
-				A58953A82E585545005DEB1F /* NoeticaTests.xctest */,
-				A58953B22E585545005DEB1F /* NoeticaUITests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -114,7 +106,7 @@
 			packageProductDependencies = (
 			);
 			productName = Noetica;
-			productReference = A58953932E585544005DEB1F /* Noetica.app */;
+			productReference = 84ED1E972E684D5200566642 /* Noetica.app */;
 			productType = "com.apple.product-type.application";
 		};
 		A58953A72E585545005DEB1F /* NoeticaTests */ = {
@@ -137,7 +129,7 @@
 			packageProductDependencies = (
 			);
 			productName = NoeticaTests;
-			productReference = A58953A82E585545005DEB1F /* NoeticaTests.xctest */;
+			productReference = 84ED1E982E684D5200566642 /* NoeticaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		A58953B12E585545005DEB1F /* NoeticaUITests */ = {
@@ -160,7 +152,7 @@
 			packageProductDependencies = (
 			);
 			productName = NoeticaUITests;
-			productReference = A58953B22E585545005DEB1F /* NoeticaUITests.xctest */;
+			productReference = 84ED1E992E684D5200566642 /* NoeticaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -196,7 +188,7 @@
 			mainGroup = A589538A2E585544005DEB1F;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A58953942E585544005DEB1F /* Products */;
+			productRefGroup = A589538A2E585544005DEB1F;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (

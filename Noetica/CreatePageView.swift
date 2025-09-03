@@ -24,6 +24,9 @@ struct CreatePageView: View {
     
     @State private var flashcardFront: String = ""
     @State private var flashcardBack: String = ""
+    
+    @State private var noteSubject: String = ""
+
 
     @State private var isSpeaking = false
 
@@ -57,6 +60,13 @@ struct CreatePageView: View {
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
 
+                TextField("Subject", text: $noteSubject)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .font(.body)
+                    .padding(.horizontal, 32)
+
                 ZStack(alignment: .topLeading) {
                     if bodyText.isEmpty {
                         Text("Start writing here ...")
@@ -73,7 +83,8 @@ struct CreatePageView: View {
                 }
                 .padding(.horizontal, 32)
                 .padding(.top, 12)
-            } else {
+            }
+else {
                 VStack(alignment: .leading, spacing: 12) {
                     TextField("Front (Question)", text: $flashcardFront)
                         .padding()
@@ -151,6 +162,8 @@ struct CreatePageView: View {
             note.body = bodyText
             note.dateCreated = note.dateCreated ?? Date()
             note.dateModified = Date()
+
+            note.subject = noteSubject.trimmingCharacters(in: .whitespacesAndNewlines)
 
             do {
                 try viewContext.save()

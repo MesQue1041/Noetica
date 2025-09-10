@@ -12,213 +12,482 @@ import CoreData
 enum CreateMode: String, CaseIterable {
     case note = "Note"
     case flashcard = "Flashcard"
+    
+    var icon: String {
+        switch self {
+        case .note: return "doc.text.fill"
+        case .flashcard: return "rectangle.stack.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .note: return .blue
+        case .flashcard: return .purple
+        }
+    }
 }
 
 struct CreatePageView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
 
     @State private var selectedMode: CreateMode = .note
-
     @State private var title: String = ""
     @State private var bodyText: String = ""
-
     @State private var flashcardFront: String = ""
     @State private var flashcardBack: String = ""
-
     @State private var noteSubject: String = ""
     @State private var isSpeaking = false
+    @State private var showingSaveAnimation = false
 
     var editingNote: Note? = nil
     var editingFlashcard: Flashcard? = nil
+    
+    enum Field {
+        case title, subject, body, front, back
+    }
 
     var body: some View {
-        NavigationView {
+        GeometryReader { geometry in
             VStack(spacing: 0) {
-                Picker("Mode", selection: $selectedMode) {
-                    ForEach(CreateMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
+                VStack(spacing: 24) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Create Content")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            
+                            Text("Express your ideas and knowledge")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    HStack(spacing: 12) {
+                        ForEach(CreateMode.allCases, id: \.self) { mode in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    selectedMode = mode
+                                }
+                            }) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: mode.icon)
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text(mode.rawValue)
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                                .foregroundColor(selectedMode == mode ? .white : mode.color)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(selectedMode == mode ? mode.color : mode.color.opacity(0.1))
+                                )
+                                .shadow(color: selectedMode == mode ? mode.color.opacity(0.3) : Color.clear, radius: 6, x: 0, y: 3)
+                                .scaleEffect(selectedMode == mode ? 1.02 : 1.0)
+                            }
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.top)
-
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+                .background(Color(.systemGroupedBackground))
+                
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         if selectedMode == .note {
-                            Group {
-                                StyledTextField("Title", text: $title, font: .title3)
-                                StyledTextField("Subject", text: $noteSubject, font: .body)
-
-                                ZStack(alignment: .topLeading) {
-                                    if bodyText.isEmpty {
-                                        Text("Start writing here …")
-                                            .foregroundColor(.secondary)
-                                            .padding(.horizontal, 8)
-                                            .padding(.top, 10)
-                                    }
-                                    TextEditor(text: $bodyText)
-                                        .frame(minHeight: 180)
-                                        .padding(8)
-                                }
-                                .background(Color(.secondarySystemBackground))
-                                .cornerRadius(12)
+                            VStack(spacing: 20) {
+                                ModernInputField(
+                                    title: "Title",
+                                    placeholder: "Enter note title...",
+                                    text: $title,
+                                    icon: "doc.text.fill",
+                                    iconColor: .blue,
+                                    focusedField: $focusedField,
+                                    fieldType: .title
+                                )
+                                
+                                ModernInputField(
+                                    title: "Subject",
+                                    placeholder: "Enter subject...",
+                                    text: $noteSubject,
+                                    icon: "book.fill",
+                                    iconColor: .green,
+                                    focusedField: $focusedField,
+                                    fieldType: .subject
+                                )
+                                
+                                ModernTextEditor(
+                                    title: "Content",
+                                    placeholder: "Start writing your note here...",
+                                    text: $bodyText,
+                                    icon: "text.alignleft",
+                                    iconColor: .purple,
+                                    focusedField: $focusedField,
+                                    fieldType: .body
+                                )
                             }
                         } else {
-                            Group {
-                                StyledTextField("Front (Question)", text: $flashcardFront, font: .title3)
-                                StyledTextField("Back (Answer)", text: $flashcardBack, font: .title3)
+                            VStack(spacing: 20) {
+                                ModernTextEditor(
+                                    title: "Front (Question)",
+                                    placeholder: "Enter your question here...",
+                                    text: $flashcardFront,
+                                    icon: "questionmark.circle.fill",
+                                    iconColor: .blue,
+                                    focusedField: $focusedField,
+                                    fieldType: .front,
+                                    minHeight: 120
+                                )
+                                
+                                ModernTextEditor(
+                                    title: "Back (Answer)",
+                                    placeholder: "Enter your answer here...",
+                                    text: $flashcardBack,
+                                    icon: "lightbulb.fill",
+                                    iconColor: .orange,
+                                    focusedField: $focusedField,
+                                    fieldType: .back,
+                                    minHeight: 120
+                                )
                             }
                         }
+                        
+                        ModernFormattingToolbar(isSpeaking: $isSpeaking)
+                        
+                        Spacer(minLength: 100)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 12)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
                 }
-
-                HStack(spacing: 14) {
-                    ForEach(formatButtons, id: \.systemName) { btn in
-                        FormatButton(system: btn.systemName)
-                    }
+                .background(Color(.systemGroupedBackground))
+                
+                VStack(spacing: 0) {
+                    Divider()
+                    
+                    ModernSaveButton(
+                        selectedMode: selectedMode,
+                        isValid: isContentValid,
+                        showingSaveAnimation: $showingSaveAnimation,
+                        action: saveContent
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
+                .background(Color(.systemBackground))
+            }
+        }
+        .navigationBarHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .keyboard) {
+                HStack {
                     Spacer()
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            isSpeaking.toggle()
-                        }
-                    }) {
-                        Image(systemName: "mic.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(14)
-                            .background(isSpeaking ? Color.red : Color.blue)
-                            .clipShape(Circle())
-                            .shadow(radius: isSpeaking ? 6 : 0)
-                            .scaleEffect(isSpeaking ? 1.1 : 1.0)
+                    Button("Done") {
+                        focusedField = nil
                     }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(Color(.systemBackground).shadow(radius: 1))
-
-                Button(action: saveContent) {
-                    Text("Save")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background((title.isEmpty && selectedMode == .note) ? Color.gray.opacity(0.4) : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                }
-                .disabled(title.isEmpty && selectedMode == .note)
-
-                Spacer(minLength: 12)
-            }
-            .navigationTitle(selectedMode == .note ? "New Note" : "New Flashcard")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { saveContent() }
-                        .disabled(title.isEmpty && selectedMode == .note)
+                    .foregroundColor(.blue)
+                    .fontWeight(.semibold)
                 }
             }
-            .onAppear {
-                if let note = editingNote {
-                    selectedMode = .note
-                    title = note.title ?? ""
-                    bodyText = note.body ?? ""
-                    noteSubject = note.subject ?? ""
-                }
-                if let flashcard = editingFlashcard {
-                    selectedMode = .flashcard
-                    flashcardFront = flashcard.frontText ?? ""
-                    flashcardBack = flashcard.backText ?? ""
-                }
-            }
+        }
+        .onAppear {
+            loadExistingContent()
+        }
+    }
+    
+    private var isContentValid: Bool {
+        switch selectedMode {
+        case .note:
+            return !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .flashcard:
+            return !flashcardFront.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                   !flashcardBack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+    
+    private func loadExistingContent() {
+        if let note = editingNote {
+            selectedMode = .note
+            title = note.title ?? ""
+            bodyText = note.body ?? ""
+            noteSubject = note.subject ?? ""
+        }
+        if let flashcard = editingFlashcard {
+            selectedMode = .flashcard
+            flashcardFront = flashcard.frontText ?? ""
+            flashcardBack = flashcard.backText ?? ""
         }
     }
 
     private func saveContent() {
-        switch selectedMode {
-        case .note:
-            let note = editingNote ?? Note(context: viewContext)
-            note.title = title
-            note.body = bodyText
-            note.dateCreated = note.dateCreated ?? Date()
-            note.dateModified = Date()
-            note.subject = noteSubject.trimmingCharacters(in: .whitespacesAndNewlines)
-            do {
-                try viewContext.save()
-                dismiss()
-            } catch {
-                print("Failed to save note: \(error)")
-            }
-        case .flashcard:
-            let card = editingFlashcard ?? Flashcard(context: viewContext)
-            card.frontText = flashcardFront
-            card.backText = flashcardBack
-            card.dateCreated = card.dateCreated ?? Date()
-            card.dateModified = Date()
-            do {
-                try viewContext.save()
-                dismiss()
-            } catch {
-                print("Failed to save flashcard: \(error)")
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showingSaveAnimation = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            switch selectedMode {
+            case .note:
+                let note = editingNote ?? Note(context: viewContext)
+                note.title = title
+                note.body = bodyText
+                note.dateCreated = note.dateCreated ?? Date()
+                note.dateModified = Date()
+                note.subject = noteSubject.trimmingCharacters(in: .whitespacesAndNewlines)
+                do {
+                    try viewContext.save()
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingSaveAnimation = false
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        dismiss()
+                    }
+                } catch {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingSaveAnimation = false
+                    }
+                    print("Failed to save note: \(error)")
+                }
+            case .flashcard:
+                let card = editingFlashcard ?? Flashcard(context: viewContext)
+                card.frontText = flashcardFront
+                card.backText = flashcardBack
+                card.dateCreated = card.dateCreated ?? Date()
+                card.dateModified = Date()
+                do {
+                    try viewContext.save()
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingSaveAnimation = false
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        dismiss()
+                    }
+                } catch {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingSaveAnimation = false
+                    }
+                    print("Failed to save flashcard: \(error)")
+                }
             }
         }
     }
 
-    private var formatButtons: [FormatButtonModel] {
-        [
-            .init(systemName: "bold"),
-            .init(systemName: "italic"),
-            .init(systemName: "list.bullet"),
-            .init(systemName: "link"),
-            .init(systemName: "photo")
-        ]
-    }
 }
 
-struct StyledTextField: View {
+struct ModernInputField: View {
+    let title: String
     let placeholder: String
     @Binding var text: String
-    var font: Font = .body
+    let icon: String
+    let iconColor: Color
+    @FocusState.Binding var focusedField: CreatePageView.Field?
+    let fieldType: CreatePageView.Field
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundColor(iconColor)
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            TextField(placeholder, text: $text)
+                .focused($focusedField, equals: fieldType)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(.primary)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(focusedField == fieldType ? iconColor : Color(.systemGray5), lineWidth: focusedField == fieldType ? 2 : 1)
+                        )
+                )
+                .animation(.easeInOut(duration: 0.2), value: focusedField)
+        }
+    }
+}
 
-    init(_ placeholder: String, text: Binding<String>, font: Font = .body) {
+struct ModernTextEditor: View {
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+    let icon: String
+    let iconColor: Color
+    @FocusState.Binding var focusedField: CreatePageView.Field?
+    let fieldType: CreatePageView.Field
+    let minHeight: CGFloat
+    
+    init(title: String, placeholder: String, text: Binding<String>, icon: String, iconColor: Color, focusedField: FocusState<CreatePageView.Field?>.Binding, fieldType: CreatePageView.Field, minHeight: CGFloat = 200) {
+        self.title = title
         self.placeholder = placeholder
         self._text = text
-        self.font = font
+        self.icon = icon
+        self.iconColor = iconColor
+        self._focusedField = focusedField
+        self.fieldType = fieldType
+        self.minHeight = minHeight
     }
-
+    
     var body: some View {
-        TextField(placeholder, text: $text)
-            .font(font)
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
-    }
-}
-
-struct FormatButtonModel {
-    let systemName: String
-}
-
-struct FormatButton: View {
-    var system: String
-
-    var body: some View {
-        Button(action: {}) {
-            Image(systemName: system)
-                .font(.title3)
-                .foregroundColor(.blue)
-                .frame(width: 36, height: 36)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundColor(iconColor)
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                }
+                
+                TextEditor(text: $text)
+                    .focused($focusedField, equals: fieldType)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.primary)
+                    .frame(minHeight: minHeight)
+                    .padding(16)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(focusedField == fieldType ? iconColor : Color(.systemGray5), lineWidth: focusedField == fieldType ? 2 : 1)
+                    )
+            )
+            .animation(.easeInOut(duration: 0.2), value: focusedField)
         }
-        .buttonStyle(.plain)
+    }
+}
+
+struct ModernFormattingToolbar: View {
+    @Binding var isSpeaking: Bool
+    
+    private let formatButtons = [
+        ("bold", "Bold", Color.blue),
+        ("italic", "Italic", Color.green),
+        ("list.bullet", "List", Color.orange),
+        ("link", "Link", Color.purple),
+        ("photo", "Photo", Color.pink)
+    ]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "paintbrush.fill")
+                    .foregroundColor(.blue)
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Text("Formatting Tools")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            HStack(spacing: 12) {
+                ForEach(formatButtons, id: \.0) { icon, label, color in
+                    Button(action: {}) {
+                        Image(systemName: icon)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(color)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(color.opacity(0.1))
+                            )
+                    }
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isSpeaking.toggle()
+                    }
+                }) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 50, height: 50)
+                        .background(
+                            Circle()
+                                .fill(isSpeaking ? Color.red : Color.blue)
+                        )
+                        .shadow(color: isSpeaking ? Color.red.opacity(0.3) : Color.blue.opacity(0.3), radius: isSpeaking ? 8 : 4, x: 0, y: 4)
+                        .scaleEffect(isSpeaking ? 1.1 : 1.0)
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+}
+
+struct ModernSaveButton: View {
+    let selectedMode: CreateMode
+    let isValid: Bool
+    @Binding var showingSaveAnimation: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                if showingSaveAnimation {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                }
+                
+                Text(showingSaveAnimation ? "Saving..." : "Save \(selectedMode.rawValue)")
+                    .font(.system(size: 18, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(isValid ? selectedMode.color : Color.gray)
+            .cornerRadius(16)
+            .shadow(color: isValid ? selectedMode.color.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
+            .scaleEffect(showingSaveAnimation ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: showingSaveAnimation)
+        }
+        .disabled(!isValid || showingSaveAnimation)
     }
 }
 

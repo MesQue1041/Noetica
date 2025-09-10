@@ -5,8 +5,6 @@
 //  Created by Abdul 017 on 2025-09-03.
 //
 
-
-
 import SwiftUI
 import CoreData
 
@@ -15,6 +13,9 @@ struct DecksView: View {
     @State private var animateCards = false
     @State private var animateFilters = false
     @State private var animateHeader = false
+    @State private var isAnimating = false
+    @State private var showingSearch = false
+    @State private var searchText = ""
 
     @FetchRequest(
         entity: Deck.entity(),
@@ -31,7 +32,7 @@ struct DecksView: View {
     @State private var selectedFilter = 0
 
     let filters = ["All", "Due", "In Progress", "Mastered"]
-    let filterColors: [Color] = [.purple, .orange, .blue, .green]
+    let filterColors: [Color] = [.blue, .orange, .purple, .green]
 
     var filteredDecks: [Deck] {
         let filtered = decks.filter { deck in
@@ -61,154 +62,293 @@ struct DecksView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Decks")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-
-                        Text("\(filteredDecks.count) collection\(filteredDecks.count == 1 ? "" : "s")")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .offset(x: animateHeader ? 0 : -30)
-                    .opacity(animateHeader ? 1 : 0)
-
-                    Spacer()
-
-                    HStack(spacing: 16) {
-                        Button(action: {}) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.primary)
-                                .frame(width: 44, height: 44)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                        }
-                        .scaleEffect(animateHeader ? 1 : 0.8)
-                        .opacity(animateHeader ? 1 : 0)
-
-                        Button(action: {}) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.primary)
-                                .frame(width: 44, height: 44)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                        }
-                        .scaleEffect(animateHeader ? 1 : 0.8)
-                        .opacity(animateHeader ? 1 : 0)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(Array(filters.enumerated()), id: \.offset) { index, f in
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    filter = f
-                                    selectedFilter = index
-                                }
-                            }) {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(filterColors[index])
-                                        .frame(width: 8, height: 8)
-                                        .opacity(filter == f ? 1 : 0.6)
-
-                                    Text(f)
-                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                        .foregroundColor(filter == f ? .primary : .secondary)
-                                }
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 20)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(filter == f ? Color(.systemGray5) : Color(.systemGray6))
-                                )
-                                .scaleEffect(filter == f ? 1.05 : 1.0)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 20) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Flashcard Decks")
+                                    .font(.system(size: 34, weight: .bold))
+                                    .foregroundColor(.primary)
+                                
+                                Text("\(filteredDecks.count) collection\(filteredDecks.count == 1 ? "" : "s") available")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                             }
-                            .offset(y: animateFilters ? 0 : 20)
-                            .opacity(animateFilters ? 1 : 0)
-                            .animation(.spring().delay(Double(index) * 0.1), value: animateFilters)
+                            Spacer()
+                            
+                            HStack(spacing: 12) {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        showingSearch.toggle()
+                                    }
+                                }) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                        .frame(width: 44, height: 44)
+                                        .background(
+                                            Circle()
+                                                .fill(Color(.systemBackground))
+                                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                        )
+                                }
+                                
+                                Button(action: {}) {
+                                    Image(systemName: "slider.horizontal.3")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.purple)
+                                        .frame(width: 44, height: 44)
+                                        .background(
+                                            Circle()
+                                                .fill(Color(.systemBackground))
+                                                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                        )
+                                }
+                            }
                         }
+                        .padding(.horizontal, 24)
+                        
+                        if showingSearch {
+                            SearchBar(text: $searchText)
+                                .padding(.horizontal, 24)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                        
+                        StatsCardsView(decks: Array(decks))
+                            .padding(.horizontal, 24)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                }
 
-                ScrollView {
+                    FilterTabsView(
+                        filters: filters,
+                        filterColors: filterColors,
+                        selectedFilter: $filter,
+                        selectedIndex: $selectedFilter
+                    )
+                    .padding(.horizontal, 24)
+
                     LazyVStack(spacing: 20) {
                         ForEach(Array(filteredDecks.enumerated()), id: \.element.objectID) { index, deck in
-                            ModernDeckCardView(
+                            ModernDeckCard(
                                 deck: deck,
                                 flashcards: flashcards(for: deck)
                             )
-                            .offset(y: animateCards ? 0 : 50)
-                            .opacity(animateCards ? 1 : 0)
-                            .animation(.spring().delay(Double(index) * 0.1), value: animateCards)
+                            .scaleEffect(isAnimating ? 1.0 : 0.9)
+                            .opacity(isAnimating ? 1.0 : 0)
+                            .animation(
+                                .spring(response: 0.6, dampingFraction: 0.8)
+                                .delay(Double(index) * 0.1),
+                                value: isAnimating
+                            )
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 8)
-                    .padding(.bottom, 120)
-                }
-            }
-
-            HStack {
-                Spacer()
-                Button(action: {
-                    showAddDeck = true
-                }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
-                        Text("Add Deck")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 20)
+                    
+                    Button(action: {
+                        showAddDeck = true
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                            
+                            Text("Create New Deck")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
+                        .foregroundColor(Color.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.blue)
+                        .cornerRadius(16)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
-                    .foregroundColor(.white)
-                    .padding(.vertical, 18)
-                    .padding(.horizontal, 32)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.purple, Color.blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .cornerRadius(25)
-                    .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 6)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    
+                    Spacer(minLength: 40)
                 }
-                .padding(.bottom, 40)
-                .padding(.trailing, 24)
-                .sheet(isPresented: $showAddDeck) {
-                    DeckCreationView()
-                        .environment(\.managedObjectContext, viewContext)
-                }
+                .padding(.top, 20)
             }
+            .background(Color(.systemGroupedBackground))
+        }
+        .sheet(isPresented: $showAddDeck) {
+            DeckCreationView()
+                .environment(\.managedObjectContext, viewContext)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) {
-                animateHeader = true
-            }
-            withAnimation(.easeOut(duration: 1).delay(0.2)) {
-                animateFilters = true
-            }
-            withAnimation(.easeOut(duration: 1).delay(0.4)) {
-                animateCards = true
+                isAnimating = true
             }
         }
     }
 }
 
-struct ModernDeckCardView: View {
+struct SearchBar: View {
+    @Binding var text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            TextField("Search decks...", text: $text)
+                .font(.system(size: 16, weight: .medium))
+                .textFieldStyle(PlainTextFieldStyle())
+            
+            if !text.isEmpty {
+                Button(action: {
+                    text = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(.systemGray4), lineWidth: 1)
+                )
+        )
+    }
+}
+
+struct StatsCardsView: View {
+    let decks: [Deck]
+    
+    private var totalCards: Int {
+        decks.reduce(0) { $0 + ($1.flashcards?.count ?? 0) }
+    }
+    
+    private var averageMastery: Double {
+        guard !decks.isEmpty else { return 0 }
+        return decks.reduce(0) { $0 + $1.mastery } / Double(decks.count)
+    }
+    
+    private var masteredDecks: Int {
+        decks.filter { $0.mastery >= 0.8 }.count
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            DeckStatCard(
+                title: "Total Cards",
+                value: "\(totalCards)",
+                icon: "rectangle.stack.fill",
+                color: Color.blue
+            )
+            
+            DeckStatCard(
+                title: "Avg Mastery",
+                value: "\(Int(averageMastery * 100))%",
+                icon: "chart.line.uptrend.xyaxis",
+                color: Color.green
+            )
+            
+            DeckStatCard(
+                title: "Mastered",
+                value: "\(masteredDecks)",
+                icon: "checkmark.seal.fill",
+                color: Color.purple
+            )
+        }
+    }
+}
+
+struct DeckStatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
+    }
+}
+
+struct FilterTabsView: View {
+    let filters: [String]
+    let filterColors: [Color]
+    @Binding var selectedFilter: String
+    @Binding var selectedIndex: Int
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(Array(filters.enumerated()), id: \.offset) { index, filter in
+                    FilterTab(
+                        title: filter,
+                        color: filterColors[index],
+                        isSelected: selectedFilter == filter
+                    ) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            selectedFilter = filter
+                            selectedIndex = index
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+}
+
+struct FilterTab: View {
+    let title: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .opacity(isSelected ? 1.0 : 0.6)
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? Color.white : color)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(isSelected ? color : color.opacity(0.1))
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+        }
+        .buttonStyle(DeckScaleButtonStyle())
+    }
+}
+
+struct ModernDeckCard: View {
     @Environment(\.managedObjectContext) private var viewContext
     let deck: Deck
     let flashcards: [Flashcard]
@@ -229,110 +369,141 @@ struct ModernDeckCardView: View {
         let hash = (deck.subject?.hash ?? 0) % colors.count
         return colors[abs(hash)]
     }
+    
+    private var masteryLevel: String {
+        switch deck.mastery {
+        case 0..<0.3: return "Beginner"
+        case 0.3..<0.7: return "Intermediate"
+        default: return "Advanced"
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
+        VStack(spacing: 20) {
+            HStack {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         Text((deck.subject ?? "GENERAL").uppercased())
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(subjectColor)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(subjectColor.opacity(0.15))
-                            .cornerRadius(12)
-
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(subjectColor.opacity(0.15))
+                            )
+                        
                         Spacer()
-
-                        Text("\(flashcards.count)")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-
-                        Text("cards")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(flashcards.count)")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("cards")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
                     }
-
+                    
                     Text(deck.name ?? "Unnamed Deck")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
             }
             
-            
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 12) {
                 HStack {
-                    Text("Mastery Progress")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Progress")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        Text(masteryLevel)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(masteryColor)
+                    }
+                    
                     Spacer()
+                    
                     Text("\(Int((deck.mastery * 100).rounded()))%")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(masteryColor)
                 }
                 
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            LinearGradient(
-                                colors: [masteryColor.opacity(0.6), masteryColor],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: max(CGFloat(deck.mastery) * (UIScreen.main.bounds.width - 80), 8), height: 8)
-                        .animation(.spring(), value: deck.mastery)
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(.systemGray5))
+                            .frame(height: 6)
+                        
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(masteryColor)
+                            .frame(width: max(geometry.size.width * CGFloat(deck.mastery), 6), height: 6)
+                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: deck.mastery)
+                    }
                 }
+                .frame(height: 6)
             }
             
-            HStack {
-                Spacer()
+            HStack(spacing: 12) {
                 Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isPressed = true
-                        showReview = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isPressed = false
-                    }
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Edit")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(Color.blue)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+                
+                Button(action: {
+                    showReview = true
+                }) {
+                    HStack(spacing: 6) {
                         Image(systemName: "brain.head.profile")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 14, weight: .semibold))
                         Text("Review")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 24)
-                    .background(
-                        LinearGradient(
-                            colors: [masteryColor.opacity(0.8), masteryColor],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .cornerRadius(20)
-                    .scaleEffect(isPressed ? 0.95 : 1.0)
-                }
-                .sheet(isPresented: $showReview) {
-                    FlashcardReviewView(flashcards: flashcards)
-                        .environment(\.managedObjectContext, viewContext)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(masteryColor)
+                    .cornerRadius(12)
+                    .shadow(color: masteryColor.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
             }
         }
-        .padding(24)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
+        .sheet(isPresented: $showReview) {
+            FlashcardReviewView(flashcards: flashcards)
+                .environment(\.managedObjectContext, viewContext)
+        }
+    }
+}
+
+struct DeckScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

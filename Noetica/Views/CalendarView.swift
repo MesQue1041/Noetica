@@ -5,111 +5,163 @@
 //  Created by Abdul 017 on 2025-09-04.
 //
 
-
 import SwiftUI
 
 struct CalendarView: View {
     @State private var selectedDate = Date()
     @State private var activityData: [Date: Int] = [:]
+    @State private var isAnimating = false
+    @State private var showingDatePicker = false
     @Namespace private var ns
 
     private let calendar = Calendar.current
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 7)
 
     var body: some View {
-        VStack(spacing: 18) {
-
-            VStack(spacing: 6) {
-                Text("Calendar")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.purple, .blue],
-                                       startPoint: .leading, endPoint: .trailing)
-                    )
-
-                HStack(spacing: 10) {
-                    Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            selectedDate = shiftMonth(by: -1, from: selectedDate)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 20) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Calendar")
+                                    .font(.system(size: 34, weight: .bold))
+                                    .foregroundColor(.primary)
+                                
+                                Text("Track your productivity")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    selectedDate = Date()
+                                }
+                            }) {
+                                Text("Today")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .fill(Color.blue.opacity(0.1))
+                                    )
+                            }
                         }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.title3.weight(.semibold))
-                            .padding(8)
-                            .background(.ultraThinMaterial, in: Circle())
+                        .padding(.horizontal, 24)
+                        
+                        MonthNavigationView(
+                            selectedDate: $selectedDate,
+                            showingDatePicker: $showingDatePicker
+                        )
+                        .padding(.horizontal, 24)
                     }
-
-                    Text(monthYearString(from: selectedDate))
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            selectedDate = shiftMonth(by: 1, from: selectedDate)
+                    
+                    VStack(spacing: 16) {
+                        HStack(spacing: 0) {
+                            ForEach(weekDaySymbols(), id: \.self) { day in
+                                Text(day)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity)
+                            }
                         }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.title3.weight(.semibold))
-                            .padding(8)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                }
-            }
-            .padding(.top, 8)
-
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(weekDaySymbols(), id: \.self) { day in
-                    Text(day)
-                        .font(.caption.bold())
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-
-            let cells = daysInMonth(for: selectedDate)
-            LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(cells.indices, id: \.self) { idx in
-                    if let date = cells[idx] {
-                        let key = calendar.startOfDay(for: date)
-                        DayCell(
-                            date: date,
-                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                            isToday: calendar.isDateInToday(date),
-                            activityCount: activityData[key] ?? 0,
-                            onTap: {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    selectedDate = date
+                        .padding(.horizontal, 24)
+                        
+                        let cells = daysInMonth(for: selectedDate)
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(cells.indices, id: \.self) { idx in
+                                if let date = cells[idx] {
+                                    let key = calendar.startOfDay(for: date)
+                                    ModernDayCell(
+                                        date: date,
+                                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                                        isToday: calendar.isDateInToday(date),
+                                        activityCount: activityData[key] ?? 0,
+                                        onTap: {
+                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                selectedDate = date
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    Color.clear
+                                        .frame(height: 50)
                                 }
                             }
-                        )
-                    } else {
-                        Color.clear
-                            .frame(height: 46)
+                        }
+                        .padding(.horizontal, 20)
                     }
-                }
-            }
-            .padding(.horizontal, 6)
-            .transition(.opacity.combined(with: .move(edge: .trailing)))
-
-            Spacer(minLength: 8)
-
-            Button(action: {}) {
-                Text("Add Task")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 30)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 20)
                     .background(
-                        Capsule()
-                            .fill(LinearGradient(colors: [.purple, .blue],
-                                                 startPoint: .leading, endPoint: .trailing))
-                            .shadow(color: .purple.opacity(0.35), radius: 12, x: 0, y: 8)
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: Color.black.opacity(0.05), radius: 12, x: 0, y: 4)
                     )
+                    .padding(.horizontal, 20)
+                    
+                    SelectedDateCard(selectedDate: selectedDate, activityCount: activityData[calendar.startOfDay(for: selectedDate)] ?? 0)
+                        .padding(.horizontal, 20)
+                    
+                    VStack(spacing: 16) {
+                        Button(action: {}) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                
+                                Text("Add Task")
+                                    .font(.system(size: 18, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(Color.blue)
+                            .cornerRadius(16)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        
+                        HStack(spacing: 16) {
+                            ActionButton(
+                                icon: "calendar.badge.plus",
+                                title: "Event",
+                                color: .green,
+                                action: {}
+                            )
+                            
+                            ActionButton(
+                                icon: "bell.fill",
+                                title: "Reminder",
+                                color: .orange,
+                                action: {}
+                            )
+                            
+                            ActionButton(
+                                icon: "chart.bar.fill",
+                                title: "Stats",
+                                color: .purple,
+                                action: {}
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    
+                    Spacer(minLength: 40)
+                }
+                .padding(.top, 20)
             }
-            .padding(.bottom, 24)
+            .background(Color(.systemGroupedBackground))
         }
-        .padding(.horizontal, 16)
-        .onAppear(perform: loadActivityData)
+        .sheet(isPresented: $showingDatePicker) {
+            DatePickerSheet(selectedDate: $selectedDate)
+        }
+        .onAppear {
+            loadActivityData()
+            withAnimation(.easeOut(duration: 0.8)) {
+                isAnimating = true
+            }
+        }
     }
 
 
@@ -154,56 +206,281 @@ struct CalendarView: View {
     }
 }
 
+struct MonthNavigationView: View {
+    @Binding var selectedDate: Date
+    @Binding var showingDatePicker: Bool
+    private let calendar = Calendar.current
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Button(action: {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    selectedDate = shiftMonth(by: -1, from: selectedDate)
+                }
+            }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle()
+                            .fill(Color(.systemBackground))
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    )
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                showingDatePicker = true
+            }) {
+                VStack(spacing: 2) {
+                    Text(monthYearString(from: selectedDate))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text("Tap to change")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    selectedDate = shiftMonth(by: 1, from: selectedDate)
+                }
+            }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle()
+                            .fill(Color(.systemBackground))
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    )
+            }
+        }
+    }
+    
+    private func monthYearString(from date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        return f.string(from: date)
+    }
+    
+    private func shiftMonth(by value: Int, from date: Date) -> Date {
+        Calendar.current.date(byAdding: .month, value: value, to: date) ?? date
+    }
+}
 
-private struct DayCell: View {
+struct ModernDayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
     let activityCount: Int
     let onTap: () -> Void
-
+    
     var body: some View {
         VStack(spacing: 6) {
             Text("\(Calendar.current.component(.day, from: date))")
-                .font(.subheadline)
-                .fontWeight(isSelected ? .bold : .regular)
-                .frame(width: 36, height: 36)
+                .font(.system(size: 16, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : (isToday ? .blue : .primary))
+                .frame(width: 40, height: 40)
                 .background(
-                    Circle().fill(
-                        isSelected
-                        ? AnyShapeStyle(LinearGradient(colors: [.purple, .blue],
-                                                       startPoint: .topLeading,
-                                                       endPoint: .bottomTrailing))
-                        : AnyShapeStyle(isToday ? Color.purple.opacity(0.15) : .clear)
-                    )
+                    Circle()
+                        .fill(isSelected ? Color.blue : (isToday ? Color.blue.opacity(0.1) : Color.clear))
+                        .overlay(
+                            Circle()
+                                .stroke(isToday && !isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                        )
                 )
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .scaleEffect(isSelected ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isSelected)
-
-            if activityCount > 0 {
-                HStack(spacing: 3) {
-                    ForEach(0..<min(activityCount, 3), id: \.self) { _ in
-                        Circle()
-                            .fill(Color.purple)
-                            .frame(width: 5, height: 5)
-                            .transition(.opacity.combined(with: .scale))
-                    }
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+            
+            HStack(spacing: 2) {
+                ForEach(0..<min(activityCount, 4), id: \.self) { index in
+                    Circle()
+                        .fill(getActivityColor(for: index))
+                        .frame(width: 4, height: 4)
+                        .scaleEffect(isSelected ? 1.2 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7).delay(Double(index) * 0.05), value: isSelected)
                 }
-            } else {
-                Spacer().frame(height: 5)
             }
+            .frame(height: 6)
         }
-        .frame(height: 46, alignment: .top)
+        .frame(height: 50)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
     }
+    
+    private func getActivityColor(for index: Int) -> Color {
+        switch index {
+        case 0: return .blue
+        case 1: return .green
+        case 2: return .orange
+        case 3: return .purple
+        default: return .gray
+        }
+    }
 }
+
+struct SelectedDateCard: View {
+    let selectedDate: Date
+    let activityCount: Int
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Selected Date")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    Text(formatSelectedDate(selectedDate))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Activities")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    Text("\(activityCount)")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            if activityCount > 0 {
+                HStack(spacing: 8) {
+                    ForEach(0..<min(activityCount, 4), id: \.self) { index in
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(getActivityColor(for: index))
+                                .frame(width: 8, height: 8)
+                            
+                            Text(getActivityName(for: index))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+    
+    private func formatSelectedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter.string(from: date)
+    }
+    
+    private func getActivityColor(for index: Int) -> Color {
+        switch index {
+        case 0: return .blue
+        case 1: return .green
+        case 2: return .orange
+        case 3: return .purple
+        default: return .gray
+        }
+    }
+    
+    private func getActivityName(for index: Int) -> String {
+        switch index {
+        case 0: return "Study"
+        case 1: return "Exercise"
+        case 2: return "Work"
+        case 3: return "Personal"
+        default: return "Other"
+        }
+    }
+}
+
+struct ActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(color)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 70)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(color.opacity(0.3), lineWidth: 2)
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+struct DatePickerSheet: View {
+    @Binding var selectedDate: Date
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                DatePicker(
+                    "Select Date",
+                    selection: $selectedDate,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.graphical)
+                .padding()
+                
+                Spacer()
+            }
+            .navigationTitle("Select Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+}
+
+
 
 struct CalendarView_Previews: PreviewProvider {
     static var previews: some View {
         CalendarView()
             .preferredColorScheme(.light)
-      
     }
 }

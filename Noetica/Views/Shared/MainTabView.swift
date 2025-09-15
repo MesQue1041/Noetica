@@ -19,9 +19,8 @@ struct MainTabView: View {
                     .tag(0)
                 
                 NotesExplorerView()
-                                  .tabItem { EmptyView() }
-                                  .tag(1)
-                              
+                    .tabItem { EmptyView() }
+                    .tag(1)
                 
                 Color.clear
                     .tabItem { EmptyView() }
@@ -42,6 +41,7 @@ struct MainTabView: View {
         .sheet(isPresented: $showCreatePage) {
             CreatePageView()
         }
+        .navigationBarHidden(true) 
     }
 }
 
@@ -123,7 +123,7 @@ struct TabBarButton: View {
             .frame(width: 50, height: 44)
             .background(
                 Circle()
-                    .fill(isSelected ? Color.green : Color.clear)
+                    .fill(isSelected ? Color.blue : Color.clear)
                     .frame(width: 36, height: 36)
             )
         }
@@ -161,38 +161,6 @@ struct FloatingPlusButton: View {
                 isPressed = pressing
             }
         }, perform: {})
-    }
-}
-
-struct ExplorerView: View {
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("Explorer")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Text("Notes & Decks")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                VStack(spacing: 12) {
-                    Text("Coming Soon")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    Text("Subject tiles and deck management will be here")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                }
-                
-                Spacer()
-            }
-            .padding()
-        }
     }
 }
 

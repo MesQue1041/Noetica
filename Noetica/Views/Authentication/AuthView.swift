@@ -5,7 +5,6 @@
 //  Created by Abdul 017 on 2025-09-03.
 //
 
-
 import SwiftUI
 import LocalAuthentication
 
@@ -20,7 +19,7 @@ struct AuthView: View {
     var body: some View {
         NavigationView {
             if isAuthenticated {
-                ContentView()
+                MainTabView()
             } else {
                 VStack(spacing: 24) {
                     Spacer()
@@ -90,6 +89,7 @@ struct AuthView: View {
                 .navigationBarHidden(true)
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle()) 
     }
 
     private func evaluateBiometricSupport() {
@@ -162,4 +162,3 @@ struct AuthView_Previews: PreviewProvider {
         AuthView()
     }
 }
-

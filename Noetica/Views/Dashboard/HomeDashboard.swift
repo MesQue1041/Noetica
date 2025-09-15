@@ -331,7 +331,6 @@ struct RecommendationCard: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            // Priority Indicator
             Rectangle()
                 .fill(recommendation.priority.color)
                 .frame(width: 4)

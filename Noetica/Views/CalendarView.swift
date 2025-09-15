@@ -7,11 +7,55 @@
 
 import SwiftUI
 
+struct CalendarEvent: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let startTime: Date
+    let endTime: Date
+    let type: EventType
+    let color: Color
+    
+    enum EventType: String, CaseIterable {
+        case study = "Study Session"
+        case pomodoro = "Pomodoro"
+        case flashcards = "Flashcards"
+        case breakTime = "Break"
+        case meeting = "Meeting"
+        case reminder = "Reminder"
+        
+        var icon: String {
+            switch self {
+            case .study: return "book.fill"
+            case .pomodoro: return "timer.circle.fill"
+            case .flashcards: return "rectangle.stack.fill"
+            case .breakTime: return "cup.and.saucer.fill"
+            case .meeting: return "person.2.fill"
+            case .reminder: return "bell.fill"
+            }
+        }
+        
+        var defaultColor: Color {
+            switch self {
+            case .study: return .blue
+            case .pomodoro: return .red
+            case .flashcards: return .green
+            case .breakTime: return .orange
+            case .meeting: return .purple
+            case .reminder: return .yellow
+            }
+        }
+    }
+}
+
 struct CalendarView: View {
     @State private var selectedDate = Date()
     @State private var activityData: [Date: Int] = [:]
+    @State private var events: [CalendarEvent] = []
     @State private var isAnimating = false
     @State private var showingDatePicker = false
+    @State private var showingEventCreation = false
+    @State private var selectedTimeSlot: Date?
     @Namespace private var ns
 
     private let calendar = Calendar.current
@@ -105,43 +149,68 @@ struct CalendarView: View {
                     SelectedDateCard(selectedDate: selectedDate, activityCount: activityData[calendar.startOfDay(for: selectedDate)] ?? 0)
                         .padding(.horizontal, 20)
                     
+                    EventsForDateView(
+                        selectedDate: selectedDate,
+                        events: eventsForDate(selectedDate),
+                        onTimeSlotTap: { time in
+                            selectedTimeSlot = time
+                            showingEventCreation = true
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                    
                     VStack(spacing: 16) {
-                        Button(action: {}) {
+                        Button(action: {
+                            selectedTimeSlot = selectedDate
+                            showingEventCreation = true
+                        }) {
                             HStack(spacing: 12) {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.system(size: 20, weight: .semibold))
                                 
-                                Text("Add Task")
+                                Text("Create Event")
                                     .font(.system(size: 18, weight: .semibold))
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(Color.blue)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                             .cornerRadius(16)
                             .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                         
                         HStack(spacing: 16) {
-                            ActionButton(
-                                icon: "calendar.badge.plus",
-                                title: "Event",
+                            QuickEventButton(
+                                icon: "timer.circle.fill",
+                                title: "Pomodoro",
+                                color: .red,
+                                action: {
+                                    createQuickEvent(type: .pomodoro)
+                                }
+                            )
+                            
+                            QuickEventButton(
+                                icon: "book.fill",
+                                title: "Study",
+                                color: .blue,
+                                action: {
+                                    createQuickEvent(type: .study)
+                                }
+                            )
+                            
+                            QuickEventButton(
+                                icon: "rectangle.stack.fill",
+                                title: "Flashcards",
                                 color: .green,
-                                action: {}
-                            )
-                            
-                            ActionButton(
-                                icon: "bell.fill",
-                                title: "Reminder",
-                                color: .orange,
-                                action: {}
-                            )
-                            
-                            ActionButton(
-                                icon: "chart.bar.fill",
-                                title: "Stats",
-                                color: .purple,
-                                action: {}
+                                action: {
+                                    createQuickEvent(type: .flashcards)
+                                }
                             )
                         }
                     }
@@ -156,8 +225,15 @@ struct CalendarView: View {
         .sheet(isPresented: $showingDatePicker) {
             DatePickerSheet(selectedDate: $selectedDate)
         }
+        .sheet(isPresented: $showingEventCreation) {
+            EventCreationSheet(
+                selectedDate: selectedTimeSlot ?? selectedDate,
+                events: $events
+            )
+        }
         .onAppear {
             loadActivityData()
+            loadSampleEvents()
             withAnimation(.easeOut(duration: 0.8)) {
                 isAnimating = true
             }
@@ -172,6 +248,61 @@ struct CalendarView: View {
                 activityData[calendar.startOfDay(for: date)] = Int.random(in: 0...5)
             }
         }
+    }
+    
+    private func loadSampleEvents() {
+        let today = Date()
+        let calendar = Calendar.current
+        
+        events = [
+            CalendarEvent(
+                title: "Morning Study Session",
+                description: "Review calculus concepts",
+                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today) ?? today,
+                endTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: today) ?? today,
+                type: .study,
+                color: .blue
+            ),
+            CalendarEvent(
+                title: "Pomodoro - Physics",
+                description: "Focus on quantum mechanics",
+                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: today) ?? today,
+                endTime: calendar.date(bySettingHour: 14, minute: 25, second: 0, of: today) ?? today,
+                type: .pomodoro,
+                color: .red
+            ),
+            CalendarEvent(
+                title: "Flashcard Review",
+                description: "Spanish vocabulary deck",
+                startTime: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today) ?? today,
+                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: today) ?? today,
+                type: .flashcards,
+                color: .green
+            )
+        ]
+    }
+    
+    private func eventsForDate(_ date: Date) -> [CalendarEvent] {
+        return events.filter { event in
+            calendar.isDate(event.startTime, inSameDayAs: date)
+        }.sorted { $0.startTime < $1.startTime }
+    }
+    
+    private func createQuickEvent(type: CalendarEvent.EventType) {
+        let startTime = calendar.date(bySettingHour: calendar.component(.hour, from: Date()), minute: 0, second: 0, of: selectedDate) ?? selectedDate
+        let duration: TimeInterval = type == .pomodoro ? 25 * 60 : 60 * 60 // 25 min for pomodoro, 1 hour for others
+        let endTime = startTime.addingTimeInterval(duration)
+        
+        let newEvent = CalendarEvent(
+            title: type.rawValue,
+            description: "Quick \(type.rawValue.lowercased()) session",
+            startTime: startTime,
+            endTime: endTime,
+            type: type,
+            color: type.defaultColor
+        )
+        
+        events.append(newEvent)
     }
 
     private func monthYearString(from date: Date) -> String {
@@ -412,7 +543,149 @@ struct SelectedDateCard: View {
     }
 }
 
-struct ActionButton: View {
+struct EventsForDateView: View {
+    let selectedDate: Date
+    let events: [CalendarEvent]
+    let onTimeSlotTap: (Date) -> Void
+    
+    private let calendar = Calendar.current
+    private let timeSlots = Array(8...22)
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Schedule")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(formatDate(selectedDate))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Text("\(events.count) event\(events.count == 1 ? "" : "s")")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            
+            if events.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No events scheduled")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    Text("Tap + to create your first event")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+                .frame(height: 120)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color(.separator), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                        )
+                )
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(events) { event in
+                        EventCard(event: event)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter.string(from: date)
+    }
+}
+
+struct EventCard: View {
+    let event: CalendarEvent
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 2) {
+                Text(formatTime(event.startTime))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(formatTime(event.endTime))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 50)
+            
+            RoundedRectangle(cornerRadius: 2)
+                .fill(event.color)
+                .frame(width: 4)
+                .frame(maxHeight: .infinity)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: event.type.icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(event.color)
+                    
+                    Text(event.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                }
+                
+                if !event.description.isEmpty {
+                    Text(event.description)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                Text(event.type.rawValue)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(event.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(event.color.opacity(0.1))
+                    )
+            }
+            
+            Spacer()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+struct QuickEventButton: View {
     let icon: String
     let title: String
     let color: Color
@@ -442,6 +715,202 @@ struct ActionButton: View {
             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+
+struct EventCreationSheet: View {
+    let selectedDate: Date
+    @Binding var events: [CalendarEvent]
+    @Environment(\.presentationMode) var presentationMode
+    
+    @State private var title = ""
+    @State private var description = ""
+    @State private var selectedType: CalendarEvent.EventType = .study
+    @State private var startTime = Date()
+    @State private var endTime = Date()
+    @State private var selectedColor: Color = .blue
+    
+    private let colors: [Color] = [.blue, .red, .green, .orange, .purple, .yellow, .pink, .cyan]
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Event Type")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                            ForEach(CalendarEvent.EventType.allCases, id: \.self) { type in
+                                Button(action: {
+                                    selectedType = type
+                                    selectedColor = type.defaultColor
+                                    if title.isEmpty {
+                                        title = type.rawValue
+                                    }
+                                }) {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: type.icon)
+                                            .font(.system(size: 20, weight: .medium))
+                                            .foregroundColor(selectedType == type ? .white : type.defaultColor)
+                                        
+                                        Text(type.rawValue)
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(selectedType == type ? .white : type.defaultColor)
+                                            .lineLimit(1)
+                                    }
+                                    .frame(height: 70)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(selectedType == type ? type.defaultColor : Color(.secondarySystemGroupedBackground))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(type.defaultColor.opacity(selectedType == type ? 0 : 0.3), lineWidth: 1)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Event Details")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        VStack(spacing: 16) {
+                            TextField("Event title", text: $title)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .font(.system(size: 16, weight: .medium))
+                            
+                            TextField("Description (optional)", text: $description, axis: .vertical)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .font(.system(size: 14, weight: .regular))
+                                .lineLimit(3, reservesSpace: true)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Time")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        VStack(spacing: 16) {
+                            HStack {
+                                Text("Start:")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 50, alignment: .leading)
+                                
+                                DatePicker("", selection: $startTime, displayedComponents: [.hourAndMinute])
+                                    .labelsHidden()
+                                    .onChange(of: startTime) { newValue in
+                                        if endTime <= newValue {
+                                            endTime = newValue.addingTimeInterval(3600)
+                                        }
+                                    }
+                            }
+                            
+                            HStack {
+                                Text("End:")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 50, alignment: .leading)
+                                
+                                DatePicker("", selection: $endTime, displayedComponents: [.hourAndMinute])
+                                    .labelsHidden()
+                            }
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Color")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 12) {
+                            ForEach(colors, id: \.self) { color in
+                                Button(action: {
+                                    selectedColor = color
+                                }) {
+                                    Circle()
+                                        .fill(color)
+                                        .frame(width: 32, height: 32)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
+                                        )
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                                        )
+                                        .scaleEffect(selectedColor == color ? 1.2 : 1.0)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedColor == color)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .navigationTitle("New Event")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveEvent()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(title.isEmpty)
+                }
+            }
+        }
+        .onAppear {
+            setupInitialValues()
+        }
+    }
+    
+    private func setupInitialValues() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDate(selectedDate, inSameDayAs: now) {
+            let nextHour = calendar.date(byAdding: .hour, value: 1, to: now) ?? now
+            startTime = calendar.date(bySettingHour: calendar.component(.hour, from: nextHour), minute: 0, second: 0, of: nextHour) ?? now
+        } else {
+            startTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: selectedDate) ?? selectedDate
+        }
+        
+        endTime = startTime.addingTimeInterval(3600) 
+    }
+    
+    private func saveEvent() {
+        let newEvent = CalendarEvent(
+            title: title,
+            description: description,
+            startTime: startTime,
+            endTime: endTime,
+            type: selectedType,
+            color: selectedColor
+        )
+        
+        events.append(newEvent)
+        presentationMode.wrappedValue.dismiss()
     }
 }
 

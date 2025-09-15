@@ -7,17 +7,38 @@
 
 import SwiftUI
 
-
 struct PomodoroTimerView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var statsService: StatsService
+    
     @State private var selectedSession: PomodoroSessionType = .work
     @State private var timeRemaining: Int = PomodoroSessionType.work.duration
     @State private var timerRunning = false
-    @State private var selectedSubject: String = "Math 101 - Calculus"
+    @State private var selectedSubject: String = "General"
     @State private var showSubjectPicker = false
     @State private var timer: Timer? = nil
     @State private var progress: Double = 1.0
     @State private var isAnimating = false
     @State private var completedSessions = 0
+    @State private var currentPomodoroSession: PomodoroSession?
+    @State private var showSessionCompleteAlert = false
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Note.subject, ascending: true)],
+        animation: .default
+    ) private var notes: FetchedResults<Note>
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
+        animation: .default
+    ) private var decks: FetchedResults<Deck>
+    
+    var availableSubjects: [String] {
+        let noteSubjects = Set(notes.compactMap { $0.subject }.filter { !$0.isEmpty })
+        let deckNames = Set(decks.compactMap { $0.name }.filter { !$0.isEmpty })
+        let allSubjects = Array(noteSubjects.union(deckNames)).sorted()
+        return allSubjects.isEmpty ? ["General"] : ["General"] + allSubjects
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -82,8 +103,12 @@ struct PomodoroTimerView: View {
                         StatsCard(completedSessions: completedSessions, currentSession: selectedSession)
                     }
                     
-                    SubjectCard(selectedSubject: $selectedSubject, showSubjectPicker: $showSubjectPicker)
-                        .padding(.horizontal, 24)
+                    SubjectCard(
+                        selectedSubject: $selectedSubject,
+                        availableSubjects: availableSubjects,
+                        showSubjectPicker: $showSubjectPicker
+                    )
+                    .padding(.horizontal, 24)
                     
                     VStack(spacing: 20) {
                         Button(action: {
@@ -139,10 +164,26 @@ struct PomodoroTimerView: View {
             .background(Color(.systemGroupedBackground))
         }
         .sheet(isPresented: $showSubjectPicker) {
-            SubjectPickerView(selectedSubject: $selectedSubject)
+            SubjectPickerView(
+                selectedSubject: $selectedSubject,
+                availableSubjects: availableSubjects
+            )
+        }
+        .alert("Session Complete!", isPresented: $showSessionCompleteAlert) {
+            Button("Great!") {
+                if selectedSession == .work {
+                    selectedSession = completedSessions % 4 == 3 ? .longBreak : .shortBreak
+                } else {
+                    selectedSession = .work
+                }
+                resetTimer()
+            }
+        } message: {
+            Text("You've completed a \(selectedSession.rawValue.lowercased()) session! Well done!")
         }
         .onAppear {
             resetTimer()
+            loadTodaysCompletedSessions()
             withAnimation(.easeOut(duration: 0.8)) {
                 isAnimating = true
             }
@@ -152,14 +193,19 @@ struct PomodoroTimerView: View {
     
     private func startTimer() {
         timerRunning = true
+        
+        currentPomodoroSession = CoreDataService.shared.createPomodoroSession(
+            subjectOrDeck: selectedSubject,
+            sessionType: selectedSession.rawValue,
+            duration: Int16(selectedSession.duration / 60)
+        )
+        
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
                 progress = Double(timeRemaining) / Double(selectedSession.duration)
             } else {
-                timer?.invalidate()
-                timerRunning = false
-                completedSessions += 1
+                completeSession()
             }
         }
     }
@@ -172,12 +218,37 @@ struct PomodoroTimerView: View {
     private func stopTimer() {
         timer?.invalidate()
         timerRunning = false
+        
+        currentPomodoroSession = nil
+    }
+    
+    private func completeSession() {
+        timer?.invalidate()
+        timerRunning = false
+        
+        if let session = currentPomodoroSession {
+            CoreDataService.shared.completePomodoroSession(session)
+            completedSessions += 1
+            statsService.updateStats()
+        }
+        
+        showSessionCompleteAlert = true
+        currentPomodoroSession = nil
     }
     
     private func resetTimer() {
         stopTimer()
         timeRemaining = selectedSession.duration
         progress = 1.0
+    }
+    
+    private func loadTodaysCompletedSessions() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        
+        let todaySessions = CoreDataService.shared.fetchCompletedSessions(from: today, to: tomorrow)
+        completedSessions = todaySessions.count
     }
     
     private func timeString(_ seconds: Int) -> String {
@@ -238,7 +309,7 @@ struct StatsCard: View {
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(currentSession.color)
                 
-                Text("Completed")
+                Text("Today")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
@@ -268,7 +339,7 @@ struct StatsCard: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.orange)
                 
-                Text("Streak")
+                Text("Focus")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
@@ -287,6 +358,7 @@ struct StatsCard: View {
 
 struct SubjectCard: View {
     @Binding var selectedSubject: String
+    let availableSubjects: [String]
     @Binding var showSubjectPicker: Bool
     
     var body: some View {
@@ -296,7 +368,7 @@ struct SubjectCard: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.blue)
                 
-                Text("Current Subject")
+                Text("Focus Subject")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
                 
@@ -375,33 +447,51 @@ struct ScaleButtonStyle: ButtonStyle {
 }
 
 struct SubjectPickerView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @Binding var selectedSubject: String
-    @State private var subjects = ["Math 101 - Calculus", "Physics", "Programming", "History", "General"]
+    let availableSubjects: [String]
     
     var body: some View {
         NavigationView {
             List {
-                ForEach(subjects, id: \.self) { subj in
-                    Button(action: {
-                        selectedSubject = subj
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        HStack {
-                            Text(subj)
-                            if subj == selectedSubject {
+                Section {
+                    ForEach(availableSubjects, id: \.self) { subject in
+                        Button(action: {
+                            selectedSubject = subject
+                            dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(subject)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.primary)
+                                    
+                                    if subject != "General" {
+                                        Text("From your notes/decks")
+                                            .font(.system(size: 12, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
                                 Spacer()
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
+                                
+                                if subject == selectedSubject {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
                             }
+                            .padding(.vertical, 4)
                         }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
             .navigationTitle("Select Subject")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { presentationMode.wrappedValue.dismiss() }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
                 }
             }
         }
@@ -411,5 +501,7 @@ struct SubjectPickerView: View {
 struct PomodoroTimerView_Previews: PreviewProvider {
     static var previews: some View {
         PomodoroTimerView()
+            .environment(\.managedObjectContext, CoreDataService.shared.context)
+            .environmentObject(StatsService())
     }
 }

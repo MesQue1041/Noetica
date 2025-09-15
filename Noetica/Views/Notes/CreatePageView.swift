@@ -5,10 +5,8 @@
 //  Created by Abdul 017 on 2025-09-03.
 //
 
-
 import SwiftUI
 import CoreData
-
 
 struct CreatePageView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -23,6 +21,9 @@ struct CreatePageView: View {
     @State private var noteSubject: String = ""
     @State private var isSpeaking = false
     @State private var showingSaveAnimation = false
+    @State private var selectedDeckForFlashcard: String = "General Flashcards"
+    @State private var showingDeckPicker = false
+    @State private var availableDeckNames: [String] = ["General Flashcards"]
 
     var editingNote: Note? = nil
     var editingFlashcard: Flashcard? = nil
@@ -142,6 +143,12 @@ struct CreatePageView: View {
                                     fieldType: .back,
                                     minHeight: 120
                                 )
+                                
+                                SimpleDeckPickerField(
+                                    selectedDeck: $selectedDeckForFlashcard,
+                                    availableDeckNames: availableDeckNames,
+                                    showingDeckPicker: $showingDeckPicker
+                                )
                             }
                         }
                         
@@ -184,6 +191,7 @@ struct CreatePageView: View {
         }
         .onAppear {
             loadExistingContent()
+            loadAvailableDecks()
         }
     }
     
@@ -208,6 +216,22 @@ struct CreatePageView: View {
             selectedMode = .flashcard
             flashcardFront = flashcard.frontText ?? ""
             flashcardBack = flashcard.backText ?? ""
+        }
+    }
+    
+    private func loadAvailableDecks() {
+        let request: NSFetchRequest<Deck> = Deck.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Deck.name, ascending: true)]
+        
+        do {
+            let decks = try viewContext.fetch(request)
+            let deckNames = decks.compactMap { $0.name }.filter { !$0.isEmpty }
+            var allNames = ["General Flashcards"]
+            allNames.append(contentsOf: deckNames)
+            availableDeckNames = Array(Set(allNames)).sorted()
+        } catch {
+            availableDeckNames = ["General Flashcards"]
+            print("Error loading decks: \(error)")
         }
     }
 
@@ -239,12 +263,17 @@ struct CreatePageView: View {
                     }
                     print("Failed to save note: \(error)")
                 }
+                
             case .flashcard:
                 let card = editingFlashcard ?? Flashcard(context: viewContext)
                 card.frontText = flashcardFront
                 card.backText = flashcardBack
                 card.dateCreated = card.dateCreated ?? Date()
                 card.dateModified = Date()
+                card.difficultyRating = 0
+                
+                assignFlashcardToDeck(card)
+                
                 do {
                     try viewContext.save()
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -263,6 +292,145 @@ struct CreatePageView: View {
         }
     }
 
+    private func assignFlashcardToDeck(_ flashcard: Flashcard) {
+        let deckRequest: NSFetchRequest<Deck> = Deck.fetchRequest()
+        deckRequest.predicate = NSPredicate(format: "name == %@", selectedDeckForFlashcard)
+        
+        do {
+            let matchingDecks = try viewContext.fetch(deckRequest)
+            if let existingDeck = matchingDecks.first {
+                flashcard.deck = existingDeck
+            } else {
+                let newDeck = Deck(context: viewContext)
+                newDeck.id = UUID()
+                newDeck.name = selectedDeckForFlashcard
+                newDeck.subject = "General"
+                newDeck.mastery = 0.0
+                flashcard.deck = newDeck
+            }
+        } catch {
+            print("Error assigning flashcard to deck: \(error)")
+        }
+    }
+}
+
+struct SimpleDeckPickerField: View {
+    @Binding var selectedDeck: String
+    let availableDeckNames: [String]
+    @Binding var showingDeckPicker: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.stack.fill")
+                    .foregroundColor(.purple)
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Text("Deck")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            Button(action: {
+                showingDeckPicker = true
+            }) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selectedDeck)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Text("Tap to change deck")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray5), lineWidth: 1)
+                        )
+                )
+            }
+            .sheet(isPresented: $showingDeckPicker) {
+                SimpleDeckPickerSheet(
+                    selectedDeck: $selectedDeck,
+                    deckNames: availableDeckNames
+                )
+            }
+        }
+    }
+}
+
+struct SimpleDeckPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedDeck: String
+    let deckNames: [String]
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section("Available Decks (\(deckNames.count))") {
+                    ForEach(deckNames, id: \.self) { deckName in
+                        Button(action: {
+                            selectedDeck = deckName
+                            dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(deckName)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.primary)
+                                    
+                                    if deckName != "General Flashcards" {
+                                        Text("Custom deck")
+                                            .font(.system(size: 12, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Default deck")
+                                            .font(.system(size: 12, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                if deckName == selectedDeck {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+            .navigationTitle("Select Deck")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }
 
 struct ModernInputField: View {

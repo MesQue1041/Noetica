@@ -18,12 +18,17 @@ struct HomeDashboardView: View {
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
         animation: .default
-    ) private var recentNotes: FetchedResults<Note>
+    ) private var allNotes: FetchedResults<Note>
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
         animation: .default
-    ) private var decks: FetchedResults<Deck>
+    ) private var allDecks: FetchedResults<Deck>
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Flashcard.dateCreated, ascending: false)],
+        animation: .default
+    ) private var allFlashcards: FetchedResults<Flashcard>
     
     @State private var todaysSessions: [StudySession] = []
     @State private var recommendations: [StudyRecommendation] = []
@@ -34,7 +39,11 @@ struct HomeDashboardView: View {
                 VStack(spacing: 24) {
                     HeaderSection()
                     
-                    StatsOverviewSection(stats: statsService.studyStats)
+                    StatsOverviewSection(
+                        totalNotes: allNotes.count,
+                        totalFlashcards: allFlashcards.count,
+                        totalStudyHours: statsService.studyStats.totalStudyHours
+                    )
                     
                     UpcomingSessionsSection(sessions: todaysSessions, showingPomodoroTimer: $showingPomodoroTimer)
                     
@@ -54,13 +63,22 @@ struct HomeDashboardView: View {
             PomodoroTimerView()
         }
         .sheet(isPresented: $showingARFlashcards) {
-            FlashcardReviewView(flashcards: Array(decks.first?.flashcards as? Set<Flashcard> ?? []))
+            FlashcardReviewView(flashcards: Array(allFlashcards))
         }
         .onAppear {
             startTimeUpdater()
-            generateTodaysSessions()
-            generateRecommendations()
             statsService.updateStats()
+        }
+        .onChange(of: allNotes.count) { _ in
+            generateRecommendations()
+            generateTodaysSessions()
+        }
+        .onChange(of: allDecks.count) { _ in
+            generateRecommendations()
+            generateTodaysSessions()
+        }
+        .onChange(of: allFlashcards.count) { _ in
+            generateRecommendations()
         }
     }
     
@@ -71,36 +89,36 @@ struct HomeDashboardView: View {
     }
     
     private func generateTodaysSessions() {
-        var sessions: [StudySession] = []
-        
-        let recentSubjects = Array(Set(recentNotes.prefix(5).compactMap { $0.subject }))
-        for (index, subject) in recentSubjects.enumerated() {
-            let hour = 9 + (index * 2)
-            sessions.append(StudySession(
-                title: "\(subject) Review",
-                time: "\(hour):00 AM",
-                type: .pomodoro,
-                subject: subject
-            ))
-        }
-        
-        for (index, deck) in decks.prefix(2).enumerated() {
-            let hour = 14 + index
-            sessions.append(StudySession(
-                title: deck.name ?? "Flashcard Review",
-                time: "\(hour):00 PM",
-                type: .flashcard,
-                subject: deck.subject ?? "General"
-            ))
-        }
-        
-        todaysSessions = sessions
-    }
-    
+          var sessions: [StudySession] = []
+          
+          let recentSubjects = Array(Set(allNotes.prefix(5).compactMap { $0.subject }))
+          for (index, subject) in recentSubjects.enumerated() {
+              let hour = 9 + (index * 2)
+              sessions.append(StudySession(
+                  title: "\(subject) Review",
+                  time: "\(hour):00 AM",
+                  type: .pomodoro,
+                  subject: subject
+              ))
+          }
+          
+          for (index, deck) in allDecks.prefix(2).enumerated() {
+              let hour = 14 + index // Afternoon sessions
+              sessions.append(StudySession(
+                  title: deck.name ?? "Flashcard Review",
+                  time: "\(hour):00 PM",
+                  type: .flashcard,
+                  subject: deck.subject ?? "General"
+              ))
+          }
+          
+          todaysSessions = sessions
+      }
+      
     private func generateRecommendations() {
         var recs: [StudyRecommendation] = []
         
-        let lowMasteryDecks = decks.filter { $0.mastery < 0.5 }
+        let lowMasteryDecks = allDecks.filter { $0.mastery < 0.5 }
         for deck in lowMasteryDecks.prefix(2) {
             recs.append(StudyRecommendation(
                 title: "Review \(deck.name ?? "Flashcards")",
@@ -110,9 +128,9 @@ struct HomeDashboardView: View {
             ))
         }
         
-        let oldNotes = recentNotes.filter { note in
+        let oldNotes = allNotes.filter { note in
             guard let modified = note.dateModified else { return false }
-            return Date().timeIntervalSince(modified) > 7 * 24 * 60 * 60 // 7 days
+            return Date().timeIntervalSince(modified) > 7 * 24 * 60 * 60
         }
         
         let oldSubjects = Array(Set(oldNotes.prefix(3).compactMap { $0.subject }))
@@ -139,7 +157,9 @@ struct HomeDashboardView: View {
 }
 
 struct StatsOverviewSection: View {
-    let stats: StudyStats
+    let totalNotes: Int
+    let totalFlashcards: Int
+    let totalStudyHours: Double
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -150,21 +170,21 @@ struct StatsOverviewSection: View {
             HStack(spacing: 12) {
                 DashboardStatCard(
                     title: "Notes",
-                    value: "\(stats.totalNotes)",
+                    value: "\(totalNotes)",
                     icon: "doc.text.fill",
                     color: .blue
                 )
                 
                 DashboardStatCard(
                     title: "Cards",
-                    value: "\(stats.totalFlashcards)",
+                    value: "\(totalFlashcards)",
                     icon: "rectangle.stack.fill",
                     color: .purple
                 )
                 
                 DashboardStatCard(
                     title: "Hours",
-                    value: String(format: "%.1f", stats.totalStudyHours),
+                    value: String(format: "%.1f", totalStudyHours),
                     icon: "clock.fill",
                     color: .green
                 )
@@ -363,6 +383,9 @@ struct EmptySessionsCard: View {
 
 struct QuickAccessSection: View {
     @Binding var showingARFlashcards: Bool
+    @State private var showingPomodoroTimer = false
+    @State private var showingCreateNote = false
+    @State private var showingDecksView = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -376,7 +399,7 @@ struct QuickAccessSection: View {
                     subtitle: "Focus session",
                     icon: "timer",
                     color: .orange,
-                    action: {}
+                    action: { showingPomodoroTimer = true }
                 )
                 
                 QuickActionCard(
@@ -392,7 +415,7 @@ struct QuickAccessSection: View {
                     subtitle: "Capture ideas",
                     icon: "doc.text",
                     color: .blue,
-                    action: {}
+                    action: { showingCreateNote = true }
                 )
                 
                 QuickActionCard(
@@ -400,9 +423,18 @@ struct QuickAccessSection: View {
                     subtitle: "Review cards",
                     icon: "rectangle.stack",
                     color: .green,
-                    action: {}
+                    action: { showingDecksView = true }
                 )
             }
+        }
+        .sheet(isPresented: $showingPomodoroTimer) {
+            PomodoroTimerView()
+        }
+        .sheet(isPresented: $showingCreateNote) {
+            CreatePageView()
+        }
+        .sheet(isPresented: $showingDecksView) {
+            DecksView()
         }
     }
 }

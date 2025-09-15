@@ -57,11 +57,12 @@ enum PomodoroSessionType: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var duration: Int {
         switch self {
-        case .work: return 25 * 60
-        case .shortBreak: return 5 * 60
-        case .longBreak: return 15 * 60
+        case .work: return 10
+        case .shortBreak: return 5
+        case .longBreak: return 8 
         }
     }
+    
     
     var color: Color {
         switch self {

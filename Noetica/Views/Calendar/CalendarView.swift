@@ -212,36 +212,39 @@ struct CalendarView: View {
     }
     
     private func loadSampleEvents() {
-        let today = Date()
         let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: selectedDate)
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday) ?? startOfToday
         
-        events = [
-            CalendarEvent(
-                title: "Morning Study Session",
-                description: "Review calculus concepts",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today) ?? today,
-                endTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: today) ?? today,
-                type: .study,
-                color: .blue
-            ),
-            CalendarEvent(
-                title: "Pomodoro - Physics",
-                description: "Focus on quantum mechanics",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: today) ?? today,
-                endTime: calendar.date(bySettingHour: 14, minute: 25, second: 0, of: today) ?? today,
-                type: .pomodoro,
-                color: .red
-            ),
-            CalendarEvent(
-                title: "Flashcard Review",
-                description: "Spanish vocabulary deck",
-                startTime: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today) ?? today,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: today) ?? today,
-                type: .flashcards,
-                color: .green
+        let pomodoroSessions = CoreDataService.shared.fetchCompletedSessions(from: startOfToday, to: endOfToday)
+        
+        events = pomodoroSessions.map { session in
+            let sessionType: CalendarEvent.EventType = session.sessionType == "Work" ? .pomodoro : .breakTime
+            
+            return CalendarEvent(
+                title: "\(session.sessionType ?? "Study") - \(session.subjectOrDeck ?? "General")",
+                description: "Completed pomodoro session",
+                startTime: session.startTime ?? startOfToday,
+                endTime: session.endTime ?? session.startTime?.addingTimeInterval(TimeInterval(session.duration * 60)) ?? startOfToday,
+                type: sessionType,
+                color: sessionType.defaultColor
             )
-        ]
+        }
+        
+        if events.isEmpty {
+            events = [
+                CalendarEvent(
+                    title: "Morning Study Session",
+                    description: "Review calculus concepts",
+                    startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: selectedDate) ?? selectedDate,
+                    endTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: selectedDate) ?? selectedDate,
+                    type: .study,
+                    color: .blue
+                )
+            ]
+        }
     }
+
     
     private func eventsForDate(_ date: Date) -> [CalendarEvent] {
         return events.filter { event in
@@ -251,7 +254,7 @@ struct CalendarView: View {
     
     private func createQuickEvent(type: CalendarEvent.EventType) {
         let startTime = calendar.date(bySettingHour: calendar.component(.hour, from: Date()), minute: 0, second: 0, of: selectedDate) ?? selectedDate
-        let duration: TimeInterval = type == .pomodoro ? 25 * 60 : 60 * 60 // 25 min for pomodoro, 1 hour for others
+        let duration: TimeInterval = type == .pomodoro ? 25 * 60 : 60 * 60 
         let endTime = startTime.addingTimeInterval(duration)
         
         let newEvent = CalendarEvent(

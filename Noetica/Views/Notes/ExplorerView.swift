@@ -478,53 +478,264 @@ struct ExplorerDeckTile: View {
 
 struct SubjectDetailView: View {
     let subject: ExplorerSubject
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    @FetchRequest private var notes: FetchedResults<Note>
+    
+    init(subject: ExplorerSubject) {
+        self.subject = subject
+        self._notes = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
+            predicate: NSPredicate(format: "subject == %@", subject.name),
+            animation: .default
+        )
+    }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text(subject.name)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Notes for \(subject.name)")
-                .foregroundColor(.secondary)
-            
-            Text("This will show all notes for this subject")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-            
-            Spacer()
+        NavigationView {
+            List {
+                if notes.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "doc.text")
+                            .font(.system(size: 48, weight: .light))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No notes yet")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        Text("Create your first note in \(subject.name)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(notes, id: \.objectID) { note in
+                        NavigationLink(destination: NoteDetailView(note: note)) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(note.title ?? "Untitled Note")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                if let body = note.body, !body.isEmpty {
+                                    Text(body)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(3)
+                                }
+                                
+                                HStack {
+                                    Text(note.dateModified?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Spacer()
+                                    
+                                    Text(subject.name)
+                                        .font(.caption)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(subject.color)
+                                        .cornerRadius(8)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .onDelete(perform: deleteNotes)
+                }
+            }
+            .navigationTitle(subject.name)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
         }
-        .padding()
-        .navigationTitle(subject.name)
+    }
+    
+    private func deleteNotes(offsets: IndexSet) {
+        withAnimation {
+            offsets.map { notes[$0] }.forEach(viewContext.delete)
+            
+            do {
+                try viewContext.save()
+            } catch {
+                print("Error deleting notes: \(error)")
+            }
+        }
+    }
+}
+
+struct NoteDetailView: View {
+    let note: Note
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(note.title ?? "Untitled Note")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                if let subject = note.subject {
+                    Text(subject)
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                }
+                
+                Text(note.body ?? "")
+                    .font(.body)
+                    .padding(.top, 8)
+                
+                Spacer()
+            }
+            .padding()
+        }
+        .navigationTitle("Note")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
+
 struct DeckDetailView: View {
     let deck: ExplorerDeck
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    @FetchRequest private var actualDecks: FetchedResults<Deck>
+    
+    init(deck: ExplorerDeck) {
+        self.deck = deck
+        self._actualDecks = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
+            predicate: NSPredicate(format: "name == %@", deck.name),
+            animation: .default
+        )
+    }
+    
+    var actualDeck: Deck? {
+        actualDecks.first
+    }
+    
+    var flashcards: [Flashcard] {
+        guard let deck = actualDeck else { return [] }
+        return (deck.flashcards as? Set<Flashcard>)?.sorted { card1, card2 in
+            (card1.dateCreated ?? Date.distantPast) > (card2.dateCreated ?? Date.distantPast)
+        } ?? []
+    }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text(deck.name)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Flashcards in \(deck.name)")
-                .foregroundColor(.secondary)
-            
-            Text("This will show all flashcards in this deck")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-            
-            Spacer()
+        NavigationView {
+            List {
+                if flashcards.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "rectangle.stack")
+                            .font(.system(size: 48, weight: .light))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No flashcards yet")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        Text("Create your first flashcard in \(deck.name)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(flashcards, id: \.objectID) { flashcard in
+                        VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Question")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .textCase(.uppercase)
+                                
+                                Text(flashcard.frontText ?? "")
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(12)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Answer")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .textCase(.uppercase)
+                                
+                                Text(flashcard.backText ?? "")
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(12)
+                            
+                            HStack {
+                                Text("Created: \(flashcard.dateCreated?.formatted(date: .abbreviated, time: .omitted) ?? "")")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                if flashcard.difficultyRating > 0 {
+                                    HStack(spacing: 2) {
+                                        ForEach(1...Int(flashcard.difficultyRating), id: \.self) { _ in
+                                            Image(systemName: "star.fill")
+                                                .font(.caption)
+                                                .foregroundColor(.yellow)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .onDelete(perform: deleteFlashcards)
+                }
+            }
+            .navigationTitle(deck.name)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
         }
-        .padding()
-        .navigationTitle(deck.name)
-        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func deleteFlashcards(offsets: IndexSet) {
+        withAnimation {
+            offsets.map { flashcards[$0] }.forEach(viewContext.delete)
+            
+            do {
+                try viewContext.save()
+            } catch {
+                print("Error deleting flashcards: \(error)")
+            }
+        }
     }
 }
+
 
 #Preview {
     NotesExplorerView()

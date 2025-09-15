@@ -6,42 +6,63 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct NotesExplorerView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var statsService: StatsService
+    
     @State private var selectedMode: ExplorerMode = .notes
     @State private var searchText = ""
     @State private var showingCreateSubject = false
     @State private var showingCreateDeck = false
     
-    @State private var subjects = [
-        ExplorerSubject(name: "Mathematics", color: .blue, noteCount: 12, imageName: "function"),
-        ExplorerSubject(name: "Physics", color: .purple, noteCount: 8, imageName: "atom"),
-        ExplorerSubject(name: "Chemistry", color: .green, noteCount: 15, imageName: "testtube.2"),
-        ExplorerSubject(name: "Biology", color: .orange, noteCount: 6, imageName: "leaf"),
-        ExplorerSubject(name: "History", color: .brown, noteCount: 10, imageName: "book.closed"),
-        ExplorerSubject(name: "Literature", color: .red, noteCount: 7, imageName: "text.book.closed")
-    ]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
+        animation: .default
+    ) private var notes: FetchedResults<Note>
     
-    @State private var decks = [
-        ExplorerDeck(name: "French Vocabulary", color: .blue, cardCount: 45, masteryLevel: 0.7),
-        ExplorerDeck(name: "Math Formulas", color: .purple, cardCount: 23, masteryLevel: 0.4),
-        ExplorerDeck(name: "Historical Dates", color: .orange, cardCount: 67, masteryLevel: 0.8),
-        ExplorerDeck(name: "Chemistry Elements", color: .green, cardCount: 34, masteryLevel: 0.6),
-        ExplorerDeck(name: "Biology Terms", color: .red, cardCount: 28, masteryLevel: 0.3)
-    ]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
+        animation: .default
+    ) private var decks: FetchedResults<Deck>
+    
+    var subjectsFromData: [ExplorerSubject] {
+        let subjectStats = statsService.getSubjectStats()
+        return subjectStats.map { stat in
+            ExplorerSubject(
+                name: stat.subject,
+                color: stat.color,
+                noteCount: stat.noteCount,
+                imageName: getSubjectIcon(for: stat.subject)
+            )
+        }
+    }
+    
+    var decksFromData: [ExplorerDeck] {
+        return decks.map { deck in
+            let flashcardCount = (deck.flashcards as? Set<Flashcard>)?.count ?? 0
+            return ExplorerDeck(
+                name: deck.name ?? "Untitled Deck",
+                color: Color.randomStudyColor(),
+                cardCount: flashcardCount,
+                masteryLevel: deck.mastery
+            )
+        }
+    }
     
     var filteredSubjects: [ExplorerSubject] {
         if searchText.isEmpty {
-            return subjects
+            return subjectsFromData
         }
-        return subjects.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        return subjectsFromData.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
     var filteredDecks: [ExplorerDeck] {
         if searchText.isEmpty {
-            return decks
+            return decksFromData
         }
-        return decks.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        return decksFromData.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
     var body: some View {
@@ -64,12 +85,32 @@ struct NotesExplorerView: View {
                             spacing: 16
                         ) {
                             if selectedMode == .notes {
-                                ForEach(filteredSubjects) { subject in
-                                    ExplorerSubjectTile(subject: subject)
+                                if filteredSubjects.isEmpty {
+                                    EmptyStateView(
+                                        icon: "doc.text",
+                                        title: "No Notes Yet",
+                                        subtitle: "Create your first note to get started",
+                                        buttonTitle: "Create Note",
+                                        action: { showingCreateSubject = true }
+                                    )
+                                } else {
+                                    ForEach(filteredSubjects) { subject in
+                                        ExplorerSubjectTile(subject: subject)
+                                    }
                                 }
                             } else {
-                                ForEach(filteredDecks) { deck in
-                                    ExplorerDeckTile(deck: deck)
+                                if filteredDecks.isEmpty {
+                                    EmptyStateView(
+                                        icon: "rectangle.stack",
+                                        title: "No Decks Yet",
+                                        subtitle: "Create your first flashcard deck",
+                                        buttonTitle: "Create Deck",
+                                        action: { showingCreateDeck = true }
+                                    )
+                                } else {
+                                    ForEach(filteredDecks) { deck in
+                                        ExplorerDeckTile(deck: deck)
+                                    }
                                 }
                             }
                         }
@@ -83,11 +124,70 @@ struct NotesExplorerView: View {
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingCreateSubject) {
-            CreateSubjectView()
+            CreatePageView()
         }
         .sheet(isPresented: $showingCreateDeck) {
-            CreateDeckView()
+            DeckCreationView()
         }
+        .onAppear {
+            statsService.updateStats()
+        }
+    }
+    
+    private func getSubjectIcon(for subject: String) -> String {
+        let lowercased = subject.lowercased()
+        switch lowercased {
+        case let s where s.contains("math"): return "function"
+        case let s where s.contains("phys"): return "atom"
+        case let s where s.contains("chem"): return "testtube.2"
+        case let s where s.contains("bio"): return "leaf"
+        case let s where s.contains("hist"): return "book.closed"
+        case let s where s.contains("lit") || s.contains("english"): return "text.book.closed"
+        case let s where s.contains("art"): return "paintpalette"
+        case let s where s.contains("music"): return "music.note"
+        case let s where s.contains("comp") || s.contains("program"): return "laptopcomputer"
+        default: return "book.fill"
+        }
+    }
+}
+
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let buttonTitle: String
+    let action: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: icon)
+                .font(.system(size: 48, weight: .light))
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: action) {
+                Text(buttonTitle)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .cornerRadius(20)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
     }
 }
 
@@ -123,13 +223,13 @@ struct ExplorerHeaderSection: View {
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    gradient: Gradient(colors: [.blue, .purple]),
+                                    gradient: Gradient(colors: [Color.blue, Color.purple]),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                             .frame(width: 44, height: 44)
-                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
                         
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .bold))
@@ -158,7 +258,7 @@ struct ExplorerHeaderSection: View {
                         .background(
                             RoundedRectangle(cornerRadius: 28)
                                 .fill(selectedMode == mode ?
-                                      LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .leading, endPoint: .trailing) :
+                                      LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .leading, endPoint: .trailing) :
                                       LinearGradient(gradient: Gradient(colors: [Color.clear]), startPoint: .leading, endPoint: .trailing)
                                 )
                         )
@@ -376,8 +476,6 @@ struct ExplorerDeckTile: View {
     }
 }
 
-
-
 struct SubjectDetailView: View {
     let subject: ExplorerSubject
     
@@ -428,66 +526,8 @@ struct DeckDetailView: View {
     }
 }
 
-struct CreateSubjectView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                Text("Create New Subject")
-                    .font(.title)
-                    .padding()
-                
-                Text("Subject creation form will be here")
-                    .foregroundColor(.gray)
-                
-                Spacer()
-            }
-            .navigationTitle("New Subject")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { dismiss() }
-                }
-            }
-        }
-    }
-}
-
-struct CreateDeckView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                Text("Create New Deck")
-                    .font(.title)
-                    .padding()
-                
-                Text("Deck creation form will be here")
-                    .foregroundColor(.gray)
-                
-                Spacer()
-            }
-            .navigationTitle("New Deck")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { dismiss() }
-                }
-            }
-        }
-    }
-}
-
 #Preview {
     NotesExplorerView()
+        .environment(\.managedObjectContext, CoreDataService.shared.context)
+        .environmentObject(StatsService())
 }

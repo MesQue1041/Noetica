@@ -9,12 +9,14 @@ import SwiftUI
 
 @main
 struct NoeticaApp: App {
-    let persistenceController = PersistenceController.shared
+    let coreDataService = CoreDataService.shared
+    let statsService = StatsService()
 
     var body: some Scene {
         WindowGroup {
             AuthView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environment(\.managedObjectContext, coreDataService.context)
+                .environmentObject(statsService)
         }
     }
 }

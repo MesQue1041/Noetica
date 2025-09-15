@@ -6,23 +6,27 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct HomeDashboardView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var statsService: StatsService
     @State private var currentTime = Date()
     @State private var showingPomodoroTimer = false
     @State private var showingARFlashcards = false
     
-    @State private var upcomingSessions = [
-        StudySession(title: "Math Review", time: "2:30 PM", type: .pomodoro, subject: "Mathematics"),
-        StudySession(title: "French Vocab", time: "4:00 PM", type: .flashcard, subject: "French"),
-        StudySession(title: "Physics Notes", time: "6:15 PM", type: .pomodoro, subject: "Physics")
-    ]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
+        animation: .default
+    ) private var recentNotes: FetchedResults<Note>
     
-    @State private var studyRecommendations = [
-        StudyRecommendation(title: "Review Biology Flashcards", reason: "You found these difficult yesterday", priority: .high, type: .flashcard),
-        StudyRecommendation(title: "Continue Chemistry Notes", reason: "Haven't studied this week", priority: .medium, type: .notes),
-        StudyRecommendation(title: "Practice Math Problems", reason: "Due for review", priority: .low, type: .pomodoro)
-    ]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
+        animation: .default
+    ) private var decks: FetchedResults<Deck>
+    
+    @State private var todaysSessions: [StudySession] = []
+    @State private var recommendations: [StudyRecommendation] = []
     
     var body: some View {
         NavigationView {
@@ -30,13 +34,15 @@ struct HomeDashboardView: View {
                 VStack(spacing: 24) {
                     HeaderSection()
                     
-                    UpcomingSessionsSection(sessions: upcomingSessions, showingPomodoroTimer: $showingPomodoroTimer)
+                    StatsOverviewSection(stats: statsService.studyStats)
+                    
+                    UpcomingSessionsSection(sessions: todaysSessions, showingPomodoroTimer: $showingPomodoroTimer)
                     
                     QuickAccessSection(showingARFlashcards: $showingARFlashcards)
                     
-                    StudyRecommendationsSection(recommendations: studyRecommendations)
+                    StudyRecommendationsSection(recommendations: recommendations)
                     
-                    StudyStreakCard()
+                    StudyStreakCard(streak: statsService.studyStats.currentStreak)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
@@ -48,10 +54,13 @@ struct HomeDashboardView: View {
             PomodoroTimerView()
         }
         .sheet(isPresented: $showingARFlashcards) {
-            FlashcardReviewView(flashcards: [])
+            FlashcardReviewView(flashcards: Array(decks.first?.flashcards as? Set<Flashcard> ?? []))
         }
         .onAppear {
             startTimeUpdater()
+            generateTodaysSessions()
+            generateRecommendations()
+            statsService.updateStats()
         }
     }
     
@@ -60,7 +69,140 @@ struct HomeDashboardView: View {
             currentTime = Date()
         }
     }
+    
+    private func generateTodaysSessions() {
+        var sessions: [StudySession] = []
+        
+        let recentSubjects = Array(Set(recentNotes.prefix(5).compactMap { $0.subject }))
+        for (index, subject) in recentSubjects.enumerated() {
+            let hour = 9 + (index * 2)
+            sessions.append(StudySession(
+                title: "\(subject) Review",
+                time: "\(hour):00 AM",
+                type: .pomodoro,
+                subject: subject
+            ))
+        }
+        
+        for (index, deck) in decks.prefix(2).enumerated() {
+            let hour = 14 + index
+            sessions.append(StudySession(
+                title: deck.name ?? "Flashcard Review",
+                time: "\(hour):00 PM",
+                type: .flashcard,
+                subject: deck.subject ?? "General"
+            ))
+        }
+        
+        todaysSessions = sessions
+    }
+    
+    private func generateRecommendations() {
+        var recs: [StudyRecommendation] = []
+        
+        let lowMasteryDecks = decks.filter { $0.mastery < 0.5 }
+        for deck in lowMasteryDecks.prefix(2) {
+            recs.append(StudyRecommendation(
+                title: "Review \(deck.name ?? "Flashcards")",
+                reason: "Low mastery level (\(Int(deck.mastery * 100))%)",
+                priority: deck.mastery < 0.3 ? .high : .medium,
+                type: .flashcard
+            ))
+        }
+        
+        let oldNotes = recentNotes.filter { note in
+            guard let modified = note.dateModified else { return false }
+            return Date().timeIntervalSince(modified) > 7 * 24 * 60 * 60 // 7 days
+        }
+        
+        let oldSubjects = Array(Set(oldNotes.prefix(3).compactMap { $0.subject }))
+        for subject in oldSubjects {
+            recs.append(StudyRecommendation(
+                title: "Review \(subject) Notes",
+                reason: "Haven't studied in over a week",
+                priority: .medium,
+                type: .notes
+            ))
+        }
+        
+        if recs.isEmpty {
+            recs.append(StudyRecommendation(
+                title: "Start Your First Study Session",
+                reason: "Build a consistent learning habit",
+                priority: .high,
+                type: .pomodoro
+            ))
+        }
+        
+        recommendations = recs
+    }
 }
+
+struct StatsOverviewSection: View {
+    let stats: StudyStats
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Your Progress")
+                .font(.title3)
+                .fontWeight(.semibold)
+            
+            HStack(spacing: 12) {
+                DashboardStatCard(
+                    title: "Notes",
+                    value: "\(stats.totalNotes)",
+                    icon: "doc.text.fill",
+                    color: .blue
+                )
+                
+                DashboardStatCard(
+                    title: "Cards",
+                    value: "\(stats.totalFlashcards)",
+                    icon: "rectangle.stack.fill",
+                    color: .purple
+                )
+                
+                DashboardStatCard(
+                    title: "Hours",
+                    value: String(format: "%.1f", stats.totalStudyHours),
+                    icon: "clock.fill",
+                    color: .green
+                )
+            }
+        }
+    }
+}
+
+struct DashboardStatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
+    }
+}
+
 
 struct HeaderSection: View {
     var body: some View {
@@ -359,6 +501,8 @@ struct RecommendationCard: View {
 }
 
 struct StudyStreakCard: View {
+    let streak: Int
+    
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: "flame.fill")
@@ -366,12 +510,12 @@ struct StudyStreakCard: View {
                 .foregroundColor(.orange)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("7 Day Streak!")
+                Text("\(streak) Day Streak!")
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                 
-                Text("Keep up the great work")
+                Text(streak > 0 ? "Keep up the great work" : "Start your learning journey")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.8))
             }
@@ -390,12 +534,11 @@ struct StudyStreakCard: View {
     }
 }
 
-
-
 struct HomeDashboardView_Previews: PreviewProvider {
     static var previews: some View {
         HomeDashboardView()
+            .environment(\.managedObjectContext, CoreDataService.shared.context)
+            .environmentObject(StatsService())
             .preferredColorScheme(.light)
     }
 }
-

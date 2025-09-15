@@ -9,24 +9,6 @@
 import SwiftUI
 import CoreData
 
-enum CreateMode: String, CaseIterable {
-    case note = "Note"
-    case flashcard = "Flashcard"
-    
-    var icon: String {
-        switch self {
-        case .note: return "doc.text.fill"
-        case .flashcard: return "rectangle.stack.fill"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .note: return .blue
-        case .flashcard: return .purple
-        }
-    }
-}
 
 struct CreatePageView: View {
     @Environment(\.managedObjectContext) private var viewContext

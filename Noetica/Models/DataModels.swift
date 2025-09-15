@@ -99,6 +99,98 @@ enum CreateMode: String, CaseIterable {
     }
 }
 
+struct StudySession: Identifiable {
+    let id = UUID()
+    let title: String
+    let time: String
+    let type: SessionType
+    let subject: String
+}
+
+enum SessionType {
+    case pomodoro, flashcard
+    
+    var icon: String {
+        switch self {
+        case .pomodoro: return "timer"
+        case .flashcard: return "rectangle.stack"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .pomodoro: return .orange
+        case .flashcard: return .purple
+        }
+    }
+}
+
+struct StudyRecommendation: Identifiable {
+    let id = UUID()
+    let title: String
+    let reason: String
+    let priority: Priority
+    let type: RecommendationType
+}
+
+enum Priority {
+    case high, medium, low
+    
+    var color: Color {
+        switch self {
+        case .high: return .red
+        case .medium: return .orange
+        case .low: return .green
+        }
+    }
+}
+
+enum RecommendationType {
+    case flashcard, notes, pomodoro
+    
+    var icon: String {
+        switch self {
+        case .flashcard: return "rectangle.stack"
+        case .notes: return "doc.text"
+        case .pomodoro: return "timer"
+        }
+    }
+}
+
+enum ExplorerMode: CaseIterable {
+    case notes, decks
+    
+    var title: String {
+        switch self {
+        case .notes: return "Notes"
+        case .decks: return "Decks"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .notes: return "doc.text"
+        case .decks: return "rectangle.stack"
+        }
+    }
+}
+
+struct ExplorerSubject: Identifiable {
+    let id = UUID()
+    let name: String
+    let color: Color
+    let noteCount: Int
+    let imageName: String
+}
+
+struct ExplorerDeck: Identifiable {
+    let id = UUID()
+    let name: String
+    let color: Color
+    let cardCount: Int
+    let masteryLevel: Double
+}
+
 struct StudyStats {
     let totalNotes: Int
     let totalFlashcards: Int

@@ -7,46 +7,7 @@
 
 import SwiftUI
 
-struct CalendarEvent: Identifiable, Equatable {
-    let id = UUID()
-    let title: String
-    let description: String
-    let startTime: Date
-    let endTime: Date
-    let type: EventType
-    let color: Color
-    
-    enum EventType: String, CaseIterable {
-        case study = "Study Session"
-        case pomodoro = "Pomodoro"
-        case flashcards = "Flashcards"
-        case breakTime = "Break"
-        case meeting = "Meeting"
-        case reminder = "Reminder"
-        
-        var icon: String {
-            switch self {
-            case .study: return "book.fill"
-            case .pomodoro: return "timer.circle.fill"
-            case .flashcards: return "rectangle.stack.fill"
-            case .breakTime: return "cup.and.saucer.fill"
-            case .meeting: return "person.2.fill"
-            case .reminder: return "bell.fill"
-            }
-        }
-        
-        var defaultColor: Color {
-            switch self {
-            case .study: return .blue
-            case .pomodoro: return .red
-            case .flashcards: return .green
-            case .breakTime: return .orange
-            case .meeting: return .purple
-            case .reminder: return .yellow
-            }
-        }
-    }
-}
+
 
 struct CalendarView: View {
     @State private var selectedDate = Date()

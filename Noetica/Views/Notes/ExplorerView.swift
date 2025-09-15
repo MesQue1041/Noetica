@@ -376,39 +376,7 @@ struct ExplorerDeckTile: View {
     }
 }
 
-enum ExplorerMode: CaseIterable {
-    case notes, decks
-    
-    var title: String {
-        switch self {
-        case .notes: return "Notes"
-        case .decks: return "Decks"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .notes: return "doc.text"
-        case .decks: return "rectangle.stack"
-        }
-    }
-}
 
-struct ExplorerSubject: Identifiable {
-    let id = UUID()
-    let name: String
-    let color: Color
-    let noteCount: Int
-    let imageName: String
-}
-
-struct ExplorerDeck: Identifiable {
-    let id = UUID()
-    let name: String
-    let color: Color
-    let cardCount: Int
-    let masteryLevel: Double
-}
 
 struct SubjectDetailView: View {
     let subject: ExplorerSubject

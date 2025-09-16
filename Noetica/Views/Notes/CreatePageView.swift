@@ -272,6 +272,15 @@ struct CreatePageView: View {
                 card.dateModified = Date()
                 card.difficultyRating = 0
                 
+                if editingFlashcard == nil {
+                    card.easinessFactor = 2.5
+                    card.repetitions = 0
+                    card.interval = 1
+                    card.nextReviewDate = Date()
+                    card.reviewCount = 0
+                    card.correctStreak = 0
+                }
+                
                 assignFlashcardToDeck(card)
                 
                 do {
@@ -288,6 +297,7 @@ struct CreatePageView: View {
                     }
                     print("Failed to save flashcard: \(error)")
                 }
+
             }
         }
     }

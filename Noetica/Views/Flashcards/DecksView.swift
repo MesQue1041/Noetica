@@ -468,9 +468,7 @@ struct ModernDeckCard: View {
                     )
                 }
                 
-                Button(action: {
-                    showReview = true
-                }) {
+                Button(action: { showReview = true }) {
                     HStack(spacing: 6) {
                         Image(systemName: "brain.head.profile")
                             .font(.system(size: 14, weight: .semibold))
@@ -484,6 +482,11 @@ struct ModernDeckCard: View {
                     .cornerRadius(12)
                     .shadow(color: masteryColor.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
+                .fullScreenCover(isPresented: $showReview) {
+                    AdvancedFlashcardReviewView(deck: deck)
+                        .environment(\.managedObjectContext, viewContext)
+                }
+
             }
         }
         .padding(20)
@@ -493,19 +496,12 @@ struct ModernDeckCard: View {
                 .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
         .sheet(isPresented: $showReview) {
-            FlashcardReviewView(flashcards: flashcards)
-                .environment(\.managedObjectContext, viewContext)
+            AdvancedFlashcardReviewView(deck: deck)                 .environment(\.managedObjectContext, viewContext)
         }
     }
 }
 
-struct DeckScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
+
 
 struct DecksView_Previews: PreviewProvider {
     static var previews: some View {

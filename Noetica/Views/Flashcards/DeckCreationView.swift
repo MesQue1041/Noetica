@@ -13,6 +13,8 @@ import CoreData
 struct DeckCreationView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) private var presentationMode
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService 
 
     @State private var deckName: String = ""
     @State private var deckSubject: String = ""

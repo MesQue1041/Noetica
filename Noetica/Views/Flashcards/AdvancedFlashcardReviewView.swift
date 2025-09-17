@@ -12,6 +12,8 @@ struct AdvancedFlashcardReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var spacedRepetition = SpacedRepetitionService.shared
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService
     
     @State private var currentCardIndex = 0
     @State private var showAnswer = false

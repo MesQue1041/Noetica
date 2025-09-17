@@ -10,6 +10,8 @@ import CoreData
 
 struct DecksView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService 
     @State private var animateCards = false
     @State private var animateFilters = false
     @State private var animateHeader = false

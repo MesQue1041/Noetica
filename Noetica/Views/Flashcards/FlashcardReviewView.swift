@@ -11,6 +11,9 @@ import SwiftUI
 struct FlashcardReviewView: View {
     @State private var currentIndex = 0
     @State private var showAnswer = false
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService
+    
     let flashcards: [Flashcard]
 
     var body: some View {

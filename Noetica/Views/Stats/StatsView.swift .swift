@@ -30,80 +30,78 @@ struct StatsView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    VStack(spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Statistics")
-                                    .font(.system(size: 34, weight: .bold))
-                                    .foregroundColor(.primary)
-                                
-                                Text("Track your learning progress")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Statistics")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundColor(.primary)
                             
-                            Spacer()
-                            
+                            Text("Track your learning progress")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showingDetailedStats = true
+                        }) {
+                            Image(systemName: "chart.bar.doc.horizontal")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.blue)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(Color(.systemBackground))
+                                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                )
+                        }
+                    }
+                    
+                    HStack(spacing: 8) {
+                        ForEach(TimeFrame.allCases, id: \.self) { timeframe in
                             Button(action: {
-                                showingDetailedStats = true
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    selectedTimeframe = timeframe
+                                }
                             }) {
-                                Image(systemName: "chart.bar.doc.horizontal")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.blue)
-                                    .frame(width: 44, height: 44)
+                                Text(timeframe.rawValue)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(selectedTimeframe == timeframe ? .white : .blue)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                                     .background(
-                                        Circle()
-                                            .fill(Color(.systemBackground))
-                                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                        Capsule()
+                                            .fill(selectedTimeframe == timeframe ? Color.blue : Color.blue.opacity(0.1))
                                     )
                             }
                         }
-                        
-                        HStack(spacing: 8) {
-                            ForEach(TimeFrame.allCases, id: \.self) { timeframe in
-                                Button(action: {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        selectedTimeframe = timeframe
-                                    }
-                                }) {
-                                    Text(timeframe.rawValue)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(selectedTimeframe == timeframe ? .white : .blue)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(
-                                            Capsule()
-                                                .fill(selectedTimeframe == timeframe ? Color.blue : Color.blue.opacity(0.1))
-                                        )
-                                }
-                            }
-                            Spacer()
-                        }
+                        Spacer()
                     }
-                    .padding(.horizontal, 20)
-                    
-                    MainStatsSection(stats: statsService.studyStats)
-                        .padding(.horizontal, 20)
-                    
-                    StudyStreakSection(streak: statsService.studyStats.currentStreak)
-                        .padding(.horizontal, 20)
-                    
-                    SubjectBreakdownSection(subjects: statsService.getSubjectStats())
-                        .padding(.horizontal, 20)
-                    
-                    DeckPerformanceSection(decks: statsService.getDeckStats())
-                        .padding(.horizontal, 20)
-                    
-                    Spacer(minLength: 100)
                 }
-                .padding(.top, 20)
+                .padding(.horizontal, 20)
+                
+                MainStatsSection(stats: statsService.studyStats)
+                    .padding(.horizontal, 20)
+                
+                StudyStreakSection(streak: statsService.studyStats.currentStreak)
+                    .padding(.horizontal, 20)
+                
+                SubjectBreakdownSection(subjects: statsService.getSubjectStats())
+                    .padding(.horizontal, 20)
+                
+                DeckPerformanceSection(decks: statsService.getDeckStats())
+                    .padding(.horizontal, 20)
+                
+                Spacer(minLength: 100)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationBarHidden(true)
+            .padding(.top, 20)
         }
+        .background(Color(.systemGroupedBackground))
+        .navigationBarHidden(true)
         .sheet(isPresented: $showingDetailedStats) {
             DetailedStatsView()
         }

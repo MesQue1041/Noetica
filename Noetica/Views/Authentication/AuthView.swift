@@ -18,11 +18,11 @@ struct AuthView: View {
     @State private var showForgotPassword = false
     
     var body: some View {
-        NavigationView {
-            if authService.isAuthenticated {
-                MainTabView()
-                    .environmentObject(authService)
-            } else {
+        if authService.isAuthenticated {
+            MainTabView()
+                .environmentObject(authService)
+        } else {
+            NavigationView {
                 VStack(spacing: 24) {
                     Spacer()
                     
@@ -122,9 +122,9 @@ struct AuthView: View {
                 } message: {
                     Text("Enter your email address to receive a password reset link.")
                 }
+                .navigationBarHidden(true)
             }
         }
-        .navigationBarHidden(true)
     }
     
     private var isValidForm: Bool {

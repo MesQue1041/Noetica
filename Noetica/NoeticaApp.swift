@@ -11,12 +11,16 @@ import Firebase
 @main
 struct NoeticaApp: App {
     let coreDataService = CoreDataService.shared
-    let statsService = StatsService()
-    @StateObject private var authService = AuthService()  
+    @StateObject private var statsService = StatsService()
+    @StateObject private var authService = AuthService()
     
     init() {
         FirebaseApp.configure()
+        
+        _ = CoreDataService.shared.context
+        print("Core Data initialized successfully")
     }
+
 
     var body: some Scene {
         WindowGroup {
@@ -24,7 +28,7 @@ struct NoeticaApp: App {
                 MainTabView()
                     .environmentObject(authService)
                     .environment(\.managedObjectContext, coreDataService.context)
-                    .environmentObject(statsService)
+                    .environmentObject(statsService)  
             } else {
                 AuthView()
                     .environmentObject(authService)

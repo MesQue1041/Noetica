@@ -18,6 +18,7 @@ struct CalendarView: View {
     @State private var showingDatePicker = false
     @State private var showingEventCreation = false
     @State private var selectedTimeSlot: Date?
+    @EnvironmentObject private var statsService: StatsService
     @Namespace private var ns
 
     private let calendar = Calendar.current

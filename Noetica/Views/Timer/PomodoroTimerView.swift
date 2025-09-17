@@ -10,7 +10,8 @@ import SwiftUI
 struct PomodoroTimerView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var statsService: StatsService
-    
+    @EnvironmentObject private var authService: AuthService
+   
     @State private var selectedSession: PomodoroSessionType = .work
     @State private var timeRemaining: Int = PomodoroSessionType.work.duration
     @State private var timerRunning = false

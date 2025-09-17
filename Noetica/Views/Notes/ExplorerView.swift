@@ -67,63 +67,61 @@ struct NotesExplorerView: View {
     }
     
     var body: some View {
-        NavigationView {
-            GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    ExplorerHeaderSection(
-                        selectedMode: $selectedMode,
-                        searchText: $searchText,
-                        showingCreateSubject: $showingCreateSubject,
-                        showingCreateDeck: $showingCreateDeck
-                    )
-                    
-                    ScrollView {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12)
-                            ],
-                            spacing: 16
-                        ) {
-                            if selectedMode == .notes {
-                                if filteredSubjects.isEmpty {
-                                    EmptyStateView(
-                                        icon: "doc.text",
-                                        title: "No Notes Yet",
-                                        subtitle: "Create your first note to get started",
-                                        buttonTitle: "Create Note",
-                                        action: { showingCreateSubject = true }
-                                    )
-                                } else {
-                                    ForEach(filteredSubjects) { subject in
-                                        ExplorerSubjectTile(subject: subject)
-                                    }
-                                }
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                ExplorerHeaderSection(
+                    selectedMode: $selectedMode,
+                    searchText: $searchText,
+                    showingCreateSubject: $showingCreateSubject,
+                    showingCreateDeck: $showingCreateDeck
+                )
+                
+                ScrollView {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 12),
+                            GridItem(.flexible(), spacing: 12)
+                        ],
+                        spacing: 16
+                    ) {
+                        if selectedMode == .notes {
+                            if filteredSubjects.isEmpty {
+                                EmptyStateView(
+                                    icon: "doc.text",
+                                    title: "No Notes Yet",
+                                    subtitle: "Create your first note to get started",
+                                    buttonTitle: "Create Note",
+                                    action: { showingCreateSubject = true }
+                                )
                             } else {
-                                if filteredDecks.isEmpty {
-                                    EmptyStateView(
-                                        icon: "rectangle.stack",
-                                        title: "No Decks Yet",
-                                        subtitle: "Create your first flashcard deck",
-                                        buttonTitle: "Create Deck",
-                                        action: { showingCreateDeck = true }
-                                    )
-                                } else {
-                                    ForEach(filteredDecks) { deck in
-                                        ExplorerDeckTile(deck: deck)
-                                    }
+                                ForEach(filteredSubjects) { subject in
+                                    ExplorerSubjectTile(subject: subject)
+                                }
+                            }
+                        } else {
+                            if filteredDecks.isEmpty {
+                                EmptyStateView(
+                                    icon: "rectangle.stack",
+                                    title: "No Decks Yet",
+                                    subtitle: "Create your first flashcard deck",
+                                    buttonTitle: "Create Deck",
+                                    action: { showingCreateDeck = true }
+                                )
+                            } else {
+                                ForEach(filteredDecks) { deck in
+                                    ExplorerDeckTile(deck: deck)
                                 }
                             }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .padding(.bottom, 100)
                     }
-                    .background(Color(UIColor.systemGroupedBackground))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 100)
                 }
+                .background(Color(UIColor.systemGroupedBackground))
             }
-            .navigationBarHidden(true)
         }
+        .navigationBarHidden(true)
         .sheet(isPresented: $showingCreateSubject) {
             CreatePageView()
         }
@@ -738,8 +736,11 @@ struct DeckDetailView: View {
 }
 
 
-#Preview {
-    NotesExplorerView()
-        .environment(\.managedObjectContext, CoreDataService.shared.context)
-        .environmentObject(StatsService())
+struct NotesExplorerView_Previews: PreviewProvider {
+    static var previews: some View {
+        NotesExplorerView()
+            .environment(\.managedObjectContext, CoreDataService.shared.context)
+            .environmentObject(StatsService())
+            .environmentObject(AuthService())
+    }
 }

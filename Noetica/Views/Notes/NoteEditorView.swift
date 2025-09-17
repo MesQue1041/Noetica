@@ -10,6 +10,8 @@ import SwiftUI
 struct NoteEditorView: View {
     @ObservedObject var note: Note
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService 
     @Environment(\.presentationMode) private var presentationMode
     @State private var isAnimating = false
     @State private var showingSaveAnimation = false

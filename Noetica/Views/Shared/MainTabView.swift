@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService
     @State private var selectedTab = 0
     @State private var showCreatePage = false
     
@@ -18,10 +19,16 @@ struct MainTabView: View {
                 HomeDashboardView()
                     .tabItem { EmptyView() }
                     .tag(0)
+                    .environment(\.managedObjectContext, CoreDataService.shared.context)
+                    .environmentObject(statsService)
+                    .environmentObject(authService)
                 
                 NotesExplorerView()
                     .tabItem { EmptyView() }
                     .tag(1)
+                    .environment(\.managedObjectContext, CoreDataService.shared.context)
+                    .environmentObject(statsService)
+                    .environmentObject(authService)
                 
                 Color.clear
                     .tabItem { EmptyView() }
@@ -30,10 +37,16 @@ struct MainTabView: View {
                 CalendarView()
                     .tabItem { EmptyView() }
                     .tag(3)
+                    .environment(\.managedObjectContext, CoreDataService.shared.context)
+                    .environmentObject(statsService)
+                    .environmentObject(authService)
                 
                 StatsView()
                     .tabItem { EmptyView() }
                     .tag(4)
+                    .environment(\.managedObjectContext, CoreDataService.shared.context)
+                    .environmentObject(statsService)
+                    .environmentObject(authService)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             
@@ -41,10 +54,15 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showCreatePage) {
             CreatePageView()
+                .environment(\.managedObjectContext, CoreDataService.shared.context)
+                .environmentObject(statsService)
+                .environmentObject(authService)
         }
-        .navigationBarHidden(true)
     }
 }
+
+
+
 
 struct CustomTabBar: View {
     @Binding var selectedTab: Int
@@ -168,4 +186,5 @@ struct FloatingPlusButton: View {
 #Preview {
     MainTabView()
         .environmentObject(AuthService())
+        .environmentObject(StatsService())
 }

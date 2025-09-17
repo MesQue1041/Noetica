@@ -9,6 +9,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var authService: AuthService
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var statsService: StatsService
+
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("enableNotifications") private var enableNotifications = true
     @AppStorage("autoBackup") private var autoBackup = true

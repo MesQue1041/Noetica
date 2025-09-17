@@ -35,31 +35,28 @@ struct HomeDashboardView: View {
     @State private var recommendations: [StudyRecommendation] = []
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    HeaderSection()
-                    
-                    StatsOverviewSection(
-                        totalNotes: allNotes.count,
-                        totalFlashcards: allFlashcards.count,
-                        totalStudyHours: statsService.studyStats.totalStudyHours
-                    )
-                    
-                    UpcomingSessionsSection(sessions: todaysSessions, showingPomodoroTimer: $showingPomodoroTimer)
-                    
-                    QuickAccessSection(showingARFlashcards: $showingARFlashcards)
-                    
-                    StudyRecommendationsSection(recommendations: recommendations)
-                    
-                    StudyStreakCard(streak: statsService.studyStats.currentStreak)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
+        ScrollView {
+            VStack(spacing: 24) {
+                HeaderSection()
+                
+                StatsOverviewSection(
+                    totalNotes: allNotes.count,
+                    totalFlashcards: allFlashcards.count,
+                    totalStudyHours: statsService.studyStats.totalStudyHours
+                )
+                
+                UpcomingSessionsSection(sessions: todaysSessions, showingPomodoroTimer: $showingPomodoroTimer)
+                
+                QuickAccessSection(showingARFlashcards: $showingARFlashcards)
+                
+                StudyRecommendationsSection(recommendations: recommendations)
+                
+                StudyStreakCard(streak: statsService.studyStats.currentStreak)
             }
-            .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
-            .navigationBarHidden(true)
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
         }
+        .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         .sheet(isPresented: $showingPomodoroTimer) {
             PomodoroTimerView()
         }
@@ -69,6 +66,8 @@ struct HomeDashboardView: View {
         .onAppear {
             startTimeUpdater()
             statsService.updateStats()
+            generateRecommendations()
+            generateTodaysSessions()
         }
         .onChange(of: allNotes.count) { _ in
             generateRecommendations()
@@ -82,6 +81,7 @@ struct HomeDashboardView: View {
             generateRecommendations()
         }
     }
+
     
     private func startTimeUpdater() {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
@@ -104,7 +104,7 @@ struct HomeDashboardView: View {
           }
           
           for (index, deck) in allDecks.prefix(2).enumerated() {
-              let hour = 14 + index // Afternoon sessions
+              let hour = 14 + index 
               sessions.append(StudySession(
                   title: deck.name ?? "Flashcard Review",
                   time: "\(hour):00 PM",

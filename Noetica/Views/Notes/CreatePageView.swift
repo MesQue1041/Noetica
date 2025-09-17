@@ -10,6 +10,7 @@ import CoreData
 
 struct CreatePageView: View {
     @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?

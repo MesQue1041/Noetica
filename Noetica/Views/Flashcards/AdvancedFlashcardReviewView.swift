@@ -284,7 +284,7 @@ struct FlashcardDisplayView: View {
     }
 }
 
-struct StatItem: View {
+struct StatItem: View {  //smol test
     let title: String
     let value: String
     

@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var authService: AuthService
     @State private var selectedTab = 0
     @State private var showCreatePage = false
     
@@ -41,7 +42,7 @@ struct MainTabView: View {
         .sheet(isPresented: $showCreatePage) {
             CreatePageView()
         }
-        .navigationBarHidden(true) 
+        .navigationBarHidden(true)
     }
 }
 
@@ -166,4 +167,5 @@ struct FloatingPlusButton: View {
 
 #Preview {
     MainTabView()
+        .environmentObject(AuthService())
 }

@@ -9,6 +9,7 @@ import SwiftUI
 import CoreData
 
 struct StatsView: View {
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var statsService: StatsService
     @State private var selectedTimeframe: TimeFrame = .week
@@ -601,5 +602,6 @@ struct StatsView_Previews: PreviewProvider {
         StatsView()
             .environment(\.managedObjectContext, CoreDataService.shared.context)
             .environmentObject(StatsService())
+            .environmentObject(AuthService())
     }
 }

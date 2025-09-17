@@ -9,113 +9,145 @@ import SwiftUI
 import LocalAuthentication
 
 struct AuthView: View {
+    @EnvironmentObject private var authService: AuthService
     @State private var isLogin = true
-    @State private var username = ""
+    @State private var email = ""
     @State private var password = ""
+    @State private var username = ""
     @State private var showBiometricOption = false
-    @State private var authMessage = ""
-    @State private var isAuthenticated = false
-
+    @State private var showForgotPassword = false
+    
     var body: some View {
         NavigationView {
-            if isAuthenticated {
+            if authService.isAuthenticated {
                 MainTabView()
+                    .environmentObject(authService)
             } else {
                 VStack(spacing: 24) {
                     Spacer()
-                    Text(isLogin ? "Login to Noetica" : "Sign Up to Noetica")
-                        .font(.largeTitle)
-                        .fontWeight(.heavy)
-                        .foregroundColor(Color.blue)
-
+                    
+                    VStack(spacing: 8) {
+                        Text(isLogin ? "Welcome Back" : "Join Noetica")
+                            .font(.largeTitle)
+                            .fontWeight(.heavy)
+                            .foregroundColor(.blue)
+                        
+                        Text(isLogin ? "Sign in to continue your learning journey" : "Start your learning adventure")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    
                     VStack(spacing: 16) {
-                        CustomTextField(text: $username, placeholder: "Username", imageName: "person.fill")
+                        CustomTextField(
+                            text: $email,
+                            placeholder: "Email",
+                            imageName: "envelope.fill"
+                        )
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        
+                        if !isLogin {
+                            CustomTextField(
+                                text: $username,
+                                placeholder: "Username",
+                                imageName: "person.fill"
+                            )
                             .autocapitalization(.none)
-
-                        CustomSecureField(text: $password, placeholder: "Password", imageName: "lock.fill")
-                    }
-
-                    if showBiometricOption && isLogin {
-                        Button(action: authenticateWithBiometrics) {
-                            HStack {
-                                Image(systemName: "faceid")
-                                    .font(.title2)
-                                Text("Login with Face ID / Touch ID")
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .leading, endPoint: .trailing))
-                            .cornerRadius(12)
-                            .shadow(radius: 5)
                         }
-                        .padding(.top, 12)
+                        
+                        CustomSecureField(
+                            text: $password,
+                            placeholder: "Password",
+                            imageName: "lock.fill"
+                        )
+                        
+                        if isLogin {
+                            HStack {
+                                Spacer()
+                                Button("Forgot Password?") {
+                                    showForgotPassword = true
+                                }
+                                .font(.footnote)
+                                .foregroundColor(.blue)
+                            }
+                        }
                     }
-
-                    Button(action: handleAuth) {
-                        Text(isLogin ? "Log In" : "Sign Up")
-                            .fontWeight(.bold)
+                    
+                    VStack(spacing: 16) {
+                        Button(action: handleAuth) {
+                            HStack {
+                                if authService.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Text(isLogin ? "Sign In" : "Create Account")
+                                        .fontWeight(.bold)
+                                }
+                            }
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background((username.isEmpty || password.isEmpty) ? Color.gray.opacity(0.5) : Color.blue)
+                            .background(isValidForm ? Color.blue : Color.gray.opacity(0.5))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                             .shadow(radius: 4)
+                        }
+                        .disabled(!isValidForm || authService.isLoading)
+                        
+                        Button(action: toggleMode) {
+                            Text(isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In")
+                                .font(.footnote)
+                                .foregroundColor(.blue)
+                        }
                     }
-                    .disabled(username.isEmpty || password.isEmpty)
-
-                    Button(action: {
-                        isLogin.toggle()
-                        authMessage = ""
-                    }) {
-                        Text(isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In")
-                            .font(.footnote)
-                            .foregroundColor(.blue)
-                    }
-
-                    if !authMessage.isEmpty {
-                        Text(authMessage)
-                            .foregroundColor(.red)
+                    
+                    if !authService.errorMessage.isEmpty {
+                        Text(authService.errorMessage)
+                            .foregroundColor(authService.errorMessage.contains("successfully") ? .green : .red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
+                            .font(.footnote)
                     }
+                    
                     Spacer()
                 }
                 .padding()
-                .onAppear {
-                    evaluateBiometricSupport()
-                }
-                .navigationTitle("")
-                .navigationBarHidden(true)
-            }
-        }
-        .navigationViewStyle(StackNavigationViewStyle()) 
-    }
-
-    private func evaluateBiometricSupport() {
-        let context = LAContext()
-        var error: NSError?
-        showBiometricOption = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-    }
-
-    private func authenticateWithBiometrics() {
-        let context = LAContext()
-        let reason = "Log in to Noetica using biometrics"
-        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    authMessage = "Biometric Authentication Successful"
-                    isAuthenticated = true
-                } else {
-                    authMessage = "Biometric Authentication Failed"
+                .alert("Reset Password", isPresented: $showForgotPassword) {
+                    TextField("Enter your email", text: $email)
+                    Button("Send Reset Email") {
+                        authService.resetPassword(email: email)
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Enter your email address to receive a password reset link.")
                 }
             }
         }
+        .navigationBarHidden(true)
     }
-
+    
+    private var isValidForm: Bool {
+        if isLogin {
+            return !email.isEmpty && !password.isEmpty
+        } else {
+            return !email.isEmpty && !password.isEmpty && !username.isEmpty
+        }
+    }
+    
     private func handleAuth() {
-        authMessage = isLogin ? "Logged in successfully!" : "Signed up successfully!"
-        isAuthenticated = true
+        if isLogin {
+            authService.signIn(email: email, password: password)
+        } else {
+            authService.signUp(email: email, password: password, username: username)
+        }
+    }
+    
+    private func toggleMode() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isLogin.toggle()
+            authService.errorMessage = ""
+        }
     }
 }
 
@@ -123,11 +155,11 @@ struct CustomTextField: View {
     @Binding var text: String
     let placeholder: String
     let imageName: String
-
+    
     var body: some View {
         HStack {
             Image(systemName: imageName)
-                .foregroundColor(Color.blue)
+                .foregroundColor(.blue)
             TextField(placeholder, text: $text)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
@@ -143,11 +175,11 @@ struct CustomSecureField: View {
     @Binding var text: String
     let placeholder: String
     let imageName: String
-
+    
     var body: some View {
         HStack {
             Image(systemName: imageName)
-                .foregroundColor(Color.blue)
+                .foregroundColor(.blue)
             SecureField(placeholder, text: $text)
         }
         .padding()
@@ -160,5 +192,6 @@ struct CustomSecureField: View {
 struct AuthView_Previews: PreviewProvider {
     static var previews: some View {
         AuthView()
+            .environmentObject(AuthService())
     }
 }

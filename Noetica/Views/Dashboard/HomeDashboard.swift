@@ -10,6 +10,7 @@ import CoreData
 
 struct HomeDashboardView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var statsService: StatsService
     @State private var currentTime = Date()
     @State private var showingPomodoroTimer = false
@@ -572,5 +573,6 @@ struct HomeDashboardView_Previews: PreviewProvider {
             .environment(\.managedObjectContext, CoreDataService.shared.context)
             .environmentObject(StatsService())
             .preferredColorScheme(.light)
+            .environmentObject(AuthService())
     }
 }

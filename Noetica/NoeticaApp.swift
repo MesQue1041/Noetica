@@ -6,17 +6,31 @@
 //
 
 import SwiftUI
+import Firebase
 
 @main
 struct NoeticaApp: App {
     let coreDataService = CoreDataService.shared
     let statsService = StatsService()
+    @StateObject private var authService = AuthService()  
+    
+    init() {
+        FirebaseApp.configure()
+    }
 
     var body: some Scene {
         WindowGroup {
-            AuthView()
-                .environment(\.managedObjectContext, coreDataService.context)
-                .environmentObject(statsService)
+            if authService.isAuthenticated {
+                MainTabView()
+                    .environmentObject(authService)
+                    .environment(\.managedObjectContext, coreDataService.context)
+                    .environmentObject(statsService)
+            } else {
+                AuthView()
+                    .environmentObject(authService)
+                    .environment(\.managedObjectContext, coreDataService.context)
+                    .environmentObject(statsService)
+            }
         }
     }
 }

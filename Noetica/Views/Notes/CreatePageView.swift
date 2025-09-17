@@ -9,6 +9,7 @@ import SwiftUI
 import CoreData
 
 struct CreatePageView: View {
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?

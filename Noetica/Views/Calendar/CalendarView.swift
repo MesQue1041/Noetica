@@ -10,6 +10,7 @@ import SwiftUI
 
 
 struct CalendarView: View {
+    @EnvironmentObject private var authService: AuthService
     @State private var selectedDate = Date()
     @State private var activityData: [Date: Int] = [:]
     @State private var events: [CalendarEvent] = []

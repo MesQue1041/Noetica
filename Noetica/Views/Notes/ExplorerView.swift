@@ -9,6 +9,7 @@ import SwiftUI
 import CoreData
 
 struct NotesExplorerView: View {
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var statsService: StatsService
     

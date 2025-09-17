@@ -26,6 +26,8 @@ struct CreatePageView: View {
     @State private var selectedDeckForFlashcard: String = "General Flashcards"
     @State private var showingDeckPicker = false
     @State private var availableDeckNames: [String] = ["General Flashcards"]
+    @State private var showingOCRCapture = false
+
 
     var editingNote: Note? = nil
     var editingFlashcard: Flashcard? = nil
@@ -154,8 +156,8 @@ struct CreatePageView: View {
                             }
                         }
                         
-                        ModernFormattingToolbar(isSpeaking: $isSpeaking)
-                        
+                        ModernFormattingToolbar(isSpeaking: $isSpeaking, showingOCRCapture: $showingOCRCapture)
+
                         Spacer(minLength: 100)
                     }
                     .padding(.horizontal, 20)
@@ -195,6 +197,13 @@ struct CreatePageView: View {
             loadExistingContent()
             loadAvailableDecks()
         }
+        .sheet(isPresented: $showingOCRCapture) {
+            OCRTextCaptureView(
+                extractedText: selectedMode == .note ? $bodyText : $flashcardFront,
+                isPresented: $showingOCRCapture
+            )
+        }
+
     }
     
     private var isContentValid: Bool {
@@ -553,13 +562,14 @@ struct ModernTextEditor: View {
 
 struct ModernFormattingToolbar: View {
     @Binding var isSpeaking: Bool
+    @Binding var showingOCRCapture: Bool
     
-    private let formatButtons = [
+    private let formatButtons: [(String, String, Color)] = [
         ("bold", "Bold", Color.blue),
         ("italic", "Italic", Color.green),
         ("list.bullet", "List", Color.orange),
         ("link", "Link", Color.purple),
-        ("photo", "Photo", Color.pink)
+        ("text.viewfinder", "OCR", Color.red)
     ]
     
     var body: some View {
@@ -577,8 +587,12 @@ struct ModernFormattingToolbar: View {
             }
             
             HStack(spacing: 12) {
-                ForEach(formatButtons, id: \.0) { icon, label, color in
-                    Button(action: {}) {
+                ForEach(formatButtons, id: \.0) { (icon, label, color) in
+                    Button(action: {
+                        if icon == "text.viewfinder" {
+                            showingOCRCapture = true
+                        }
+                    }) {
                         Image(systemName: icon)
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(color)
@@ -605,7 +619,12 @@ struct ModernFormattingToolbar: View {
                             Circle()
                                 .fill(isSpeaking ? Color.red : Color.blue)
                         )
-                        .shadow(color: isSpeaking ? Color.red.opacity(0.3) : Color.blue.opacity(0.3), radius: isSpeaking ? 8 : 4, x: 0, y: 4)
+                        .shadow(
+                            color: isSpeaking ? Color.red.opacity(0.3) : Color.blue.opacity(0.3),
+                            radius: isSpeaking ? 8 : 4,
+                            x: 0,
+                            y: 4
+                        )
                         .scaleEffect(isSpeaking ? 1.1 : 1.0)
                 }
             }

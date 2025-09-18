@@ -321,9 +321,12 @@ struct ExplorerHeaderSection: View {
 struct ExplorerSubjectTile: View {
     let subject: ExplorerSubject
     @State private var isPressed = false
+    @State private var showingDetail = false
     
     var body: some View {
-        NavigationLink(destination: SubjectDetailView(subject: subject)) {
+        Button(action: {
+            showingDetail = true
+        }) {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     VStack(spacing: 12) {
@@ -386,15 +389,24 @@ struct ExplorerSubjectTile: View {
                 isPressed = pressing
             }
         }, perform: {})
+        .sheet(isPresented: $showingDetail) {  // Present as sheet instead
+            NavigationView {
+                SubjectDetailView(subject: subject)
+            }
+        }
     }
 }
+
 
 struct ExplorerDeckTile: View {
     let deck: ExplorerDeck
     @State private var isPressed = false
+    @State private var showingDetail = false
     
     var body: some View {
-        NavigationLink(destination: DeckDetailView(deck: deck)) {
+        Button(action: {
+            showingDetail = true
+        }) {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     VStack(spacing: 12) {
@@ -472,8 +484,14 @@ struct ExplorerDeckTile: View {
                 isPressed = pressing
             }
         }, perform: {})
+        .sheet(isPresented: $showingDetail) {  // Present as sheet
+            NavigationView {
+                DeckDetailView(deck: deck)
+            }
+        }
     }
 }
+
 
 struct SubjectDetailView: View {
     let subject: ExplorerSubject
@@ -491,7 +509,6 @@ struct SubjectDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
             List {
                 if notes.isEmpty {
                     VStack(spacing: 16) {
@@ -557,7 +574,7 @@ struct SubjectDetailView: View {
                     }
                 }
             }
-        }
+        
     }
     
     private func deleteNotes(offsets: IndexSet) {
@@ -634,7 +651,6 @@ struct DeckDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
             List {
                 if flashcards.isEmpty {
                     VStack(spacing: 16) {
@@ -719,7 +735,7 @@ struct DeckDetailView: View {
                     }
                 }
             }
-        }
+        
     }
     
     private func deleteFlashcards(offsets: IndexSet) {

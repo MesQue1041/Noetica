@@ -28,7 +28,7 @@ struct NoeticaApp: App {
                 MainTabView()
                     .environmentObject(authService)
                     .environment(\.managedObjectContext, coreDataService.context)
-                    .environmentObject(statsService)  
+                    .environmentObject(statsService)
             } else {
                 AuthView()
                     .environmentObject(authService)

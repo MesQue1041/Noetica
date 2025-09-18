@@ -79,16 +79,10 @@ struct NotesExplorerView: View {
                 )
                 
                 ScrollView {
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: 12),
-                            GridItem(.flexible(), spacing: 12)
-                        ],
-                        spacing: 16
-                    ) {
+                    VStack(spacing: 24) {
                         if selectedMode == .notes {
                             if filteredSubjects.isEmpty {
-                                EmptyStateView(
+                                ModernEmptyStateView(
                                     icon: "doc.text",
                                     title: "No Notes Yet",
                                     subtitle: "Create your first note to get started",
@@ -96,13 +90,21 @@ struct NotesExplorerView: View {
                                     action: { showingCreateSubject = true }
                                 )
                             } else {
-                                ForEach(filteredSubjects) { subject in
-                                    ExplorerSubjectTile(subject: subject)
+                                LazyVGrid(
+                                    columns: [
+                                        GridItem(.flexible(), spacing: 20),
+                                        GridItem(.flexible(), spacing: 20)
+                                    ],
+                                    spacing: 24
+                                ) {
+                                    ForEach(filteredSubjects) { subject in
+                                        ModernExplorerSubjectTile(subject: subject)
+                                    }
                                 }
                             }
                         } else {
                             if filteredDecks.isEmpty {
-                                EmptyStateView(
+                                ModernEmptyStateView(
                                     icon: "rectangle.stack",
                                     title: "No Decks Yet",
                                     subtitle: "Create your first flashcard deck",
@@ -110,15 +112,23 @@ struct NotesExplorerView: View {
                                     action: { showingCreateDeck = true }
                                 )
                             } else {
-                                ForEach(filteredDecks) { deck in
-                                    ExplorerDeckTile(deck: deck)
+                                LazyVGrid(
+                                    columns: [
+                                        GridItem(.flexible(), spacing: 20),
+                                        GridItem(.flexible(), spacing: 20)
+                                    ],
+                                    spacing: 24
+                                ) {
+                                    ForEach(filteredDecks) { deck in
+                                        ModernExplorerDeckTile(deck: deck)
+                                    }
                                 }
                             }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 100)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
+                    .padding(.bottom, 120)
                 }
                 .background(Color(UIColor.systemGroupedBackground))
             }
@@ -152,7 +162,7 @@ struct NotesExplorerView: View {
     }
 }
 
-struct EmptyStateView: View {
+struct ModernEmptyStateView: View {
     let icon: String
     let title: String
     let subtitle: String
@@ -160,35 +170,53 @@ struct EmptyStateView: View {
     let action: () -> Void
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+        VStack(spacing: 32) {
+            VStack(spacing: 24) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 48, weight: .medium))
+                        .foregroundColor(.blue)
+                }
                 
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 12) {
+                    Text(title)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                }
             }
             
             Button(action: action) {
-                Text(buttonTitle)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .cornerRadius(20)
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    
+                    Text(buttonTitle)
+                        .font(.system(size: 17, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.blue)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                )
             }
+            .buttonStyle(PlainButtonStyle())
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 40)
+        .padding(.vertical, 60)
     }
 }
 
@@ -199,15 +227,15 @@ struct ExplorerHeaderSection: View {
     @Binding var showingCreateDeck: Bool
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             HStack {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Explorer")
-                        .font(.system(size: 34, weight: .bold))
+                        .font(.system(size: 40, weight: .black, design: .rounded))
                         .foregroundColor(.primary)
                     
-                    Text("Organize your learning")
-                        .font(.system(size: 16))
+                    Text("Discover & organize your knowledge")
+                        .font(.system(size: 17, weight: .medium))
                         .foregroundColor(.secondary)
                 }
                 
@@ -221,106 +249,91 @@ struct ExplorerHeaderSection: View {
                     }
                 }) {
                     ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color.blue, Color.purple]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 44, height: 44)
-                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.blue)
+                            .frame(width: 52, height: 52)
+                            .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 6)
                         
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
                     }
                 }
+                .scaleEffect(1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedMode)
             }
             
-            HStack(spacing: 0) {
-                ForEach(ExplorerMode.allCases, id: \.self) { mode in
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedMode = mode
+            VStack(spacing: 20) {
+                HStack(spacing: 8) {
+                    ForEach(ExplorerMode.allCases, id: \.self) { mode in
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                selectedMode = mode
+                            }
+                        }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: mode.icon)
+                                    .font(.system(size: 18, weight: .semibold))
+                                
+                                Text(mode.title)
+                                    .font(.system(size: 17, weight: .bold))
+                            }
+                            .foregroundColor(selectedMode == mode ? .white : .primary)
+                            .padding(.horizontal, 28)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(selectedMode == mode ? Color.blue : Color(.systemBackground))
+                                    .shadow(color: selectedMode == mode ? Color.blue.opacity(0.3) : Color.black.opacity(0.08), radius: selectedMode == mode ? 8 : 4, x: 0, y: selectedMode == mode ? 4 : 2)
+                            )
+                            .scaleEffect(selectedMode == mode ? 1.02 : 1.0)
                         }
-                    }) {
-                        HStack(spacing: 10) {
-                            Image(systemName: mode.icon)
-                                .font(.system(size: 16, weight: .medium))
-                            
-                            Text(mode.title)
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundColor(selectedMode == mode ? .white : .secondary)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 28)
-                                .fill(selectedMode == mode ?
-                                      LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .leading, endPoint: .trailing) :
-                                      LinearGradient(gradient: Gradient(colors: [Color.clear]), startPoint: .leading, endPoint: .trailing)
-                                )
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .padding(4)
-            .background(
-                RoundedRectangle(cornerRadius: 32)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 32)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                    )
-            )
-            
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                TextField("Search \(selectedMode.title.lowercased())", text: $searchText)
-                    .font(.system(size: 16))
-                    .textFieldStyle(PlainTextFieldStyle())
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            searchText = ""
-                        }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.secondary)
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
+                
+                HStack(spacing: 16) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Search \(selectedMode.title.lowercased())...", text: $searchText)
+                        .font(.system(size: 17, weight: .medium))
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                searchText = ""
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
+                )
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                    )
-            )
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
         .background(
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(Color(.systemGroupedBackground))
                 .ignoresSafeArea()
         )
     }
 }
 
-struct ExplorerSubjectTile: View {
+struct ModernExplorerSubjectTile: View {
     let subject: ExplorerSubject
     @State private var isPressed = false
     @State private var showingDetail = false
@@ -329,65 +342,75 @@ struct ExplorerSubjectTile: View {
         Button(action: {
             showingDetail = true
         }) {
-            GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            subject.color.opacity(0.3),
-                                            subject.color.opacity(0.1)
-                                        ]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 56, height: 56)
-                            
-                            Image(systemName: subject.imageName)
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundColor(subject.color)
-                        }
+            VStack(spacing: 0) {
+                VStack(spacing: 20) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(subject.color.opacity(0.15))
+                            .frame(width: 72, height: 72)
                         
-                        VStack(spacing: 4) {
-                            Text(subject.name)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
+                        Image(systemName: subject.imageName)
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(subject.color)
+                    }
+                    
+                    VStack(spacing: 8) {
+                        Text(subject.name)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(subject.color)
                             
                             Text("\(subject.noteCount) notes")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.secondary)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(subject.color.opacity(0.1))
+                        )
                     }
-                    .padding(.top, 20)
-                    .padding(.horizontal, 16)
-                    
+                }
+                .padding(.top, 28)
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                HStack {
                     Spacer()
                     
-                    Rectangle()
-                        .fill(subject.color)
-                        .frame(height: 3)
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(subject.color)
+                        .opacity(0.8)
+                    
+                    Spacer()
                 }
+                .padding(.bottom, 20)
             }
-            .frame(height: 160)
+            .frame(height: 200)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(subject.color.opacity(0.2), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(subject.color.opacity(0.15), lineWidth: 2)
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .shadow(color: subject.color.opacity(0.2), radius: 8, x: 0, y: 4)
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isPressed = pressing
             }
         }, perform: {})
@@ -400,7 +423,7 @@ struct ExplorerSubjectTile: View {
 }
 
 
-struct ExplorerDeckTile: View {
+struct ModernExplorerDeckTile: View {
     let deck: ExplorerDeck
     @State private var isPressed = false
     @State private var showingDetail = false
@@ -409,80 +432,95 @@ struct ExplorerDeckTile: View {
         Button(action: {
             showingDetail = true
         }) {
-            GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .stroke(deck.color.opacity(0.15), lineWidth: 6)
-                                .frame(width: 64, height: 64)
-                            
-                            Circle()
-                                .trim(from: 0, to: deck.masteryLevel)
-                                .stroke(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [deck.color, deck.color.opacity(0.7)]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                                )
-                                .frame(width: 64, height: 64)
-                                .rotationEffect(.degrees(-90))
-                            
-                            Image(systemName: "rectangle.stack.fill")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(deck.color)
-                        }
+            VStack(spacing: 0) {
+                VStack(spacing: 20) {
+                    ZStack {
+                        Circle()
+                            .stroke(deck.color.opacity(0.2), lineWidth: 8)
+                            .frame(width: 80, height: 80)
                         
-                        VStack(spacing: 4) {
-                            Text(deck.name)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
+                        Circle()
+                            .trim(from: 0, to: deck.masteryLevel)
+                            .stroke(
+                                deck.color,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            )
+                            .frame(width: 80, height: 80)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 1.0), value: deck.masteryLevel)
+                        
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(deck.color)
+                    }
+                    
+                    VStack(spacing: 8) {
+                        Text(deck.name)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.stack.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(deck.color)
                             
                             Text("\(deck.cardCount) cards")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.secondary)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(deck.color.opacity(0.1))
+                        )
                     }
-                    .padding(.top, 20)
-                    .padding(.horizontal, 16)
+                }
+                .padding(.top, 28)
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                HStack {
+                    Text("\(Int(deck.masteryLevel * 100))%")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(deck.color)
+                                .shadow(color: deck.color.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
                     
                     Spacer()
                     
-                    HStack {
-                        Spacer()
-                        Text("\(Int(deck.masteryLevel * 100))%")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(deck.color)
-                            )
-                        Spacer()
-                    }
-                    .padding(.bottom, 16)
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(deck.color)
+                        .opacity(0.8)
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
-            .frame(height: 160)
+            .frame(height: 200)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(deck.color.opacity(0.2), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(deck.color.opacity(0.15), lineWidth: 2)
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .shadow(color: deck.color.opacity(0.2), radius: 8, x: 0, y: 4)
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isPressed = pressing
             }
         }, perform: {})
@@ -774,7 +812,3 @@ struct NotesExplorerView_Previews: PreviewProvider {
             .environmentObject(AuthService())
     }
 }
-
-
-
-

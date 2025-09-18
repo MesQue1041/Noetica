@@ -14,6 +14,7 @@ struct CreatePageView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?
+    @StateObject private var mlClassifier = MLTextClassifier.shared
 
     @State private var selectedMode: CreateMode = .note
     @State private var title: String = ""
@@ -28,8 +29,9 @@ struct CreatePageView: View {
     @State private var availableDeckNames: [String] = ["General Flashcards"]
     @State private var showingOCRCapture = false
     @State private var showingVoiceRecording = false
-
-
+    
+    @State private var predictedSubject = ""
+    @State private var classificationConfidence: Double = 0.0
 
     var editingNote: Note? = nil
     var editingFlashcard: Flashcard? = nil
@@ -125,6 +127,16 @@ struct CreatePageView: View {
                                     focusedField: $focusedField,
                                     fieldType: .body
                                 )
+                                
+                                if selectedMode == .note && !predictedSubject.isEmpty {
+                                    ClassificationStatusView(
+                                        subject: predictedSubject,
+                                        confidence: String(format: "%.0f%%", classificationConfidence * 100),
+                                        onSubjectChange: { newSubject in
+                                            noteSubject = newSubject
+                                        }
+                                    )
+                                }
                             }
                         } else {
                             VStack(spacing: 20) {
@@ -161,7 +173,7 @@ struct CreatePageView: View {
                         ModernFormattingToolbar(
                             isSpeaking: $isSpeaking,
                             showingOCRCapture: $showingOCRCapture,
-                            showingVoiceRecording: $showingVoiceRecording  
+                            showingVoiceRecording: $showingVoiceRecording
                         )
                         Spacer(minLength: 100)
                     }
@@ -214,8 +226,31 @@ struct CreatePageView: View {
                   isPresented: $showingVoiceRecording
               )
           }
-      
-
+        .onChange(of: title) { _ in
+            autoClassifyNote()
+        }
+        .onChange(of: bodyText) { _ in
+            autoClassifyNote()
+        }
+    }
+    
+    private func autoClassifyNote() {
+        let combinedText = "\(title) \(bodyText)"
+        
+        guard !combinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+        
+        let result = mlClassifier.classifyWithConfidence(combinedText)
+        
+        DispatchQueue.main.async {
+            self.predictedSubject = result.label
+            self.classificationConfidence = result.confidence
+            
+            if result.confidence > 0.5 && self.noteSubject.isEmpty {
+                self.noteSubject = result.label
+            }
+        }
     }
     
     private var isContentValid: Bool {
@@ -257,7 +292,7 @@ struct CreatePageView: View {
             print("Error loading decks: \(error)")
         }
     }
-
+    
     private func saveContent() {
         withAnimation(.easeInOut(duration: 0.2)) {
             showingSaveAnimation = true
@@ -271,7 +306,16 @@ struct CreatePageView: View {
                 note.body = bodyText
                 note.dateCreated = note.dateCreated ?? Date()
                 note.dateModified = Date()
-                note.subject = noteSubject.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                let finalSubject = noteSubject.trimmingCharacters(in: .whitespacesAndNewlines)
+                if finalSubject.isEmpty {
+                    note.subject = predictedSubject.isEmpty ? "General" : predictedSubject
+                } else {
+                    note.subject = finalSubject
+                }
+                
+                print("Saved note with subject: \(note.subject ?? "Unknown")")
+                
                 do {
                     try viewContext.save()
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -320,7 +364,6 @@ struct CreatePageView: View {
                     }
                     print("Failed to save flashcard: \(error)")
                 }
-
             }
         }
     }
@@ -346,6 +389,83 @@ struct CreatePageView: View {
         }
     }
 }
+
+struct ClassificationStatusView: View {
+    let subject: String
+    let confidence: String
+    let onSubjectChange: (String) -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.blue)
+                
+                Text("AI Classification")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Text(confidence)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(confidenceColor)
+                    )
+            }
+            
+            HStack {
+                Text("Predicted: ")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                Text(subject)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(.blue.opacity(0.1))
+                            .overlay(
+                                Capsule()
+                                    .stroke(.blue.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                
+                Spacer()
+                
+                Button("Use This") {
+                    onSubjectChange(subject)
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.blue)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(.blue.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+    
+    private var confidenceColor: Color {
+        let conf = Double(confidence.replacingOccurrences(of: "%", with: "")) ?? 0
+        if conf > 80 { return .green }
+        if conf > 60 { return .orange }
+        return .red
+    }
+}
+
 
 struct SimpleDeckPickerField: View {
     @Binding var selectedDeck: String

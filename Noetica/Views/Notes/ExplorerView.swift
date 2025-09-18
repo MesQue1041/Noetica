@@ -17,6 +17,8 @@ struct NotesExplorerView: View {
     @State private var searchText = ""
     @State private var showingCreateSubject = false
     @State private var showingCreateDeck = false
+    @State private var showingARReview = false
+
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
@@ -389,7 +391,7 @@ struct ExplorerSubjectTile: View {
                 isPressed = pressing
             }
         }, perform: {})
-        .sheet(isPresented: $showingDetail) {  // Present as sheet instead
+        .sheet(isPresented: $showingDetail) {
             NavigationView {
                 SubjectDetailView(subject: subject)
             }
@@ -484,7 +486,7 @@ struct ExplorerDeckTile: View {
                 isPressed = pressing
             }
         }, perform: {})
-        .sheet(isPresented: $showingDetail) {  // Present as sheet
+        .sheet(isPresented: $showingDetail) {
             NavigationView {
                 DeckDetailView(deck: deck)
             }
@@ -627,6 +629,7 @@ struct NoteDetailView: View {
 struct DeckDetailView: View {
     let deck: ExplorerDeck
     @Environment(\.managedObjectContext) private var viewContext
+    @State private var showingARReview = false
     
     @FetchRequest private var actualDecks: FetchedResults<Deck>
     
@@ -649,95 +652,106 @@ struct DeckDetailView: View {
             (card1.dateCreated ?? Date.distantPast) > (card2.dateCreated ?? Date.distantPast)
         } ?? []
     }
-    
     var body: some View {
-            List {
-                if flashcards.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "rectangle.stack")
-                            .font(.system(size: 48, weight: .light))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No flashcards yet")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        
-                        Text("Create your first flashcard in \(deck.name)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(flashcards, id: \.objectID) { flashcard in
-                        VStack(alignment: .leading, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Question")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .textCase(.uppercase)
-                                
-                                Text(flashcard.frontText ?? "")
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(12)
+        List {
+            if flashcards.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 48, weight: .light))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No flashcards yet")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    Text("Create your first flashcard in \(deck.name)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(flashcards, id: \.objectID) { flashcard in
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Question")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
                             
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Answer")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .textCase(.uppercase)
-                                
-                                Text(flashcard.backText ?? "")
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.green.opacity(0.1))
-                            .cornerRadius(12)
+                            Text(flashcard.frontText ?? "")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(12)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Answer")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
                             
-                            HStack {
-                                Text("Created: \(flashcard.dateCreated?.formatted(date: .abbreviated, time: .omitted) ?? "")")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                if flashcard.difficultyRating > 0 {
-                                    HStack(spacing: 2) {
-                                        ForEach(1...Int(flashcard.difficultyRating), id: \.self) { _ in
-                                            Image(systemName: "star.fill")
-                                                .font(.caption)
-                                                .foregroundColor(.yellow)
-                                        }
+                            Text(flashcard.backText ?? "")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(12)
+                        
+                        HStack {
+                            Text("Created: \(flashcard.dateCreated?.formatted(date: .abbreviated, time: .omitted) ?? "")")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            if flashcard.difficultyRating > 0 {
+                                HStack(spacing: 2) {
+                                    ForEach(1...Int(flashcard.difficultyRating), id: \.self) { _ in
+                                        Image(systemName: "star.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.yellow)
                                     }
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
                     }
-                    .onDelete(perform: deleteFlashcards)
+                    .padding(.vertical, 8)
                 }
+                .onDelete(perform: deleteFlashcards)
             }
-            .navigationTitle(deck.name)
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+        }
+        .navigationTitle(deck.name)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(action: {
+                        showingARReview = true
+                    }) {
+                        Label("Review in AR", systemImage: "arkit")
+                    }
+                    
                     Button(action: {
                     }) {
-                        Image(systemName: "plus")
+                        Label("Add Flashcard", systemImage: "plus")
                     }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
-        
+        }
+        .sheet(isPresented: $showingARReview) {
+            ARFlashcardReviewView(flashcards: flashcards, isPresented: $showingARReview)
+        }
     }
-    
+
     private func deleteFlashcards(offsets: IndexSet) {
         withAnimation {
             offsets.map { flashcards[$0] }.forEach(viewContext.delete)
@@ -760,3 +774,7 @@ struct NotesExplorerView_Previews: PreviewProvider {
             .environmentObject(AuthService())
     }
 }
+
+
+
+

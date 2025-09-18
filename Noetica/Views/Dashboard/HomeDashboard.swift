@@ -15,6 +15,7 @@ struct HomeDashboardView: View {
     @State private var currentTime = Date()
     @State private var showingPomodoroTimer = false
     @State private var showingARFlashcards = false
+
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
@@ -61,7 +62,7 @@ struct HomeDashboardView: View {
             PomodoroTimerView()
         }
         .sheet(isPresented: $showingARFlashcards) {
-            FlashcardReviewView(flashcards: Array(allFlashcards))
+            ARFlashcardReviewView(flashcards: Array(allFlashcards), isPresented: $showingARFlashcards)
         }
         .onAppear {
             startTimeUpdater()
@@ -410,6 +411,7 @@ struct QuickAccessSection: View {
                     color: .purple,
                     action: { showingARFlashcards = true }
                 )
+
                 
                 QuickActionCard(
                     title: "Quick Note",

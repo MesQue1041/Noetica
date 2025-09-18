@@ -27,6 +27,8 @@ struct CreatePageView: View {
     @State private var showingDeckPicker = false
     @State private var availableDeckNames: [String] = ["General Flashcards"]
     @State private var showingOCRCapture = false
+    @State private var showingVoiceRecording = false
+
 
 
     var editingNote: Note? = nil
@@ -156,8 +158,11 @@ struct CreatePageView: View {
                             }
                         }
                         
-                        ModernFormattingToolbar(isSpeaking: $isSpeaking, showingOCRCapture: $showingOCRCapture)
-
+                        ModernFormattingToolbar(
+                            isSpeaking: $isSpeaking,
+                            showingOCRCapture: $showingOCRCapture,
+                            showingVoiceRecording: $showingVoiceRecording  
+                        )
                         Spacer(minLength: 100)
                     }
                     .padding(.horizontal, 20)
@@ -203,6 +208,13 @@ struct CreatePageView: View {
                 isPresented: $showingOCRCapture
             )
         }
+        .sheet(isPresented: $showingVoiceRecording) {
+              VoiceRecordingView(
+                  recognizedText: selectedMode == .note ? $bodyText : $flashcardFront,
+                  isPresented: $showingVoiceRecording
+              )
+          }
+      
 
     }
     
@@ -563,6 +575,7 @@ struct ModernTextEditor: View {
 struct ModernFormattingToolbar: View {
     @Binding var isSpeaking: Bool
     @Binding var showingOCRCapture: Bool
+    @Binding var showingVoiceRecording: Bool
     
     private let formatButtons: [(String, String, Color)] = [
         ("bold", "Bold", Color.blue),
@@ -607,9 +620,7 @@ struct ModernFormattingToolbar: View {
                 Spacer()
                 
                 Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isSpeaking.toggle()
-                    }
+                    showingVoiceRecording = true
                 }) {
                     Image(systemName: "mic.fill")
                         .font(.system(size: 18, weight: .semibold))
@@ -617,15 +628,14 @@ struct ModernFormattingToolbar: View {
                         .frame(width: 50, height: 50)
                         .background(
                             Circle()
-                                .fill(isSpeaking ? Color.red : Color.blue)
+                                .fill(Color.blue)
                         )
                         .shadow(
-                            color: isSpeaking ? Color.red.opacity(0.3) : Color.blue.opacity(0.3),
-                            radius: isSpeaking ? 8 : 4,
+                            color: Color.blue.opacity(0.3),
+                            radius: 4,
                             x: 0,
                             y: 4
                         )
-                        .scaleEffect(isSpeaking ? 1.1 : 1.0)
                 }
             }
         }
@@ -637,6 +647,7 @@ struct ModernFormattingToolbar: View {
         )
     }
 }
+
 
 struct ModernSaveButton: View {
     let selectedMode: CreateMode

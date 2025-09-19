@@ -14,10 +14,13 @@ class CoreDataService: ObservableObject {
     static let shared = CoreDataService()
     
     lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "DataModel")
+        let container = NSPersistentContainer(name: "Noetica")
         container.loadPersistentStores(completionHandler: { _, error in
             if let error = error as NSError? {
+                print("Core Data error: \(error)")
                 fatalError("Unresolved error \(error), \(error.userInfo)")
+            } else {
+                print("Core Data initialized successfully")
             }
         })
         return container
@@ -82,15 +85,18 @@ class CoreDataService: ObservableObject {
             saveCalendarEvent(updatedEvent)
             
             NotificationService.shared.scheduleSessionReminder(for: updatedEvent, minutesBefore: 10)
+            NotificationService.shared.scheduleSessionStartNotification(for: updatedEvent)
             
-            print("Created calendar event with linked session and notification")
+            print("Created calendar event with linked session and notifications")
             return updatedEvent
         } else {
             saveCalendarEvent(event)
             NotificationService.shared.scheduleSessionReminder(for: event, minutesBefore: 10)
+            NotificationService.shared.scheduleSessionStartNotification(for: event) 
             return event
         }
     }
+
     
     func createQuickPomodoroEvent(
         subject: String? = nil,
@@ -207,7 +213,7 @@ class CoreDataService: ObservableObject {
             request.predicate = NSPredicate(format: "completed == %@", NSNumber(value: completed))
         }
         
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \PomodoroSession.startTime, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: false)]
         
         do {
             return try context.fetch(request)
@@ -221,7 +227,7 @@ class CoreDataService: ObservableObject {
         let request: NSFetchRequest<PomodoroSession> = PomodoroSession.fetchRequest()
         request.predicate = NSPredicate(format: "completed == %@ AND startTime >= %@ AND startTime <= %@",
                                       NSNumber(value: true), startDate as NSDate, endDate as NSDate)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \PomodoroSession.startTime, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: false)]
         
         do {
             return try context.fetch(request)
@@ -253,7 +259,7 @@ class CoreDataService: ObservableObject {
             request.predicate = NSPredicate(format: "subject == %@", subject)
         }
         
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "dateModified", ascending: false)]
         
         do {
             return try context.fetch(request)
@@ -276,7 +282,7 @@ class CoreDataService: ObservableObject {
     
     func fetchDecks() -> [Deck] {
         let request: NSFetchRequest<Deck> = Deck.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Deck.name, ascending: true)]
+        request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         
         do {
             return try context.fetch(request)
@@ -313,7 +319,7 @@ class CoreDataService: ObservableObject {
             request.predicate = NSPredicate(format: "deck == %@", deck)
         }
         
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Flashcard.dateCreated, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(key: "dateCreated", ascending: false)]
         
         do {
             return try context.fetch(request)

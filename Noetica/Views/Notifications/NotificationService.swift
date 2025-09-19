@@ -100,6 +100,68 @@ class NotificationService: NSObject, ObservableObject {
         }
     }
     
+    func scheduleSessionStartNotification(for event: CalendarEvent) {
+        guard isAuthorized else { return }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "🎯 Session Starting Now!"
+        
+        if event.type == .studySession {
+            content.body = "Your '\(event.subject ?? "Study")' session is ready to begin"
+        } else {
+            content.body = "Your '\(event.deckName ?? "Flashcard")' review is ready to begin"
+        }
+        
+        content.sound = UNNotificationSound.default
+        content.badge = 1
+        content.categoryIdentifier = "SESSION_START"
+        
+        // Add action button
+        let startAction = UNNotificationAction(
+            identifier: "START_SESSION",
+            title: "Start Now",
+            options: .foreground
+        )
+        let snoozeAction = UNNotificationAction(
+            identifier: "SNOOZE_SESSION",
+            title: "5 min later",
+            options: []
+        )
+        
+        let category = UNNotificationCategory(
+            identifier: "SESSION_START",
+            actions: [startAction, snoozeAction],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+        
+        content.userInfo = [
+            "eventId": event.id.uuidString,
+            "eventType": event.type.rawValue
+        ]
+        
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: event.startTime),
+            repeats: false
+        )
+        
+        let request = UNNotificationRequest(
+            identifier: "session_start_\(event.id.uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling start notification: \(error)")
+            } else {
+                print("Scheduled session start notification for \(event.startTime)")
+            }
+        }
+    }
+
     
     func scheduleDailyFlashcardReminder() {
         guard isAuthorized else { return }

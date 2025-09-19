@@ -522,6 +522,7 @@ struct EmptyEventsView: View {
 
 struct EventCard: View {
     let event: CalendarEvent
+    @StateObject private var timerService = PomodoroTimerService.shared
     
     var body: some View {
         HStack(spacing: 16) {
@@ -547,7 +548,29 @@ struct EventCard: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 16))
                             .foregroundColor(.green)
+                    } else if isSessionActive {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(timerService.isRunning ? 1.2 : 1.0)
+                                .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: timerService.isRunning)
+                            
+                            Text(timerService.formattedTime)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.red)
+                        }
+                    }  else if canStartNow {
+                        Button(action: {
+                            NavigationService.shared.navigateToTimer(with: event)  // ✅ NEW CODE
+                        }) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.green)
+                        }
                     }
+
+
                 }
                 
                 Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
@@ -581,9 +604,29 @@ struct EventCard: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.secondarySystemGroupedBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isSessionActive ? Color.red.opacity(0.5) : Color.clear, lineWidth: 2)
+                )
         )
     }
+    
+    private var canStartNow: Bool {
+        let now = Date()
+        let fiveMinutesBefore = event.startTime.addingTimeInterval(-300)
+        let fifteenMinutesAfter = event.endTime.addingTimeInterval(900)   
+        let playWindow = fiveMinutesBefore...fifteenMinutesAfter
+        
+        return !event.isCompleted &&
+               playWindow.contains(now) &&
+               !isSessionActive
+    }
+
+    private var isSessionActive: Bool {
+        return timerService.currentEvent?.id == event.id && timerService.isRunning
+    }
 }
+
 
 struct QuickEventButton: View {
     let icon: String
@@ -732,7 +775,7 @@ struct StreamlinedEventCreationSheet: View {
                                         .foregroundColor(.primary)
                                 }
                                 
-                                Slider(value: $duration, in: 900...7200, step: 900)
+                                Slider(value: $duration, in: 60...7200, step: 60)
                                     .tint(eventType.defaultColor)
                             }
                         }

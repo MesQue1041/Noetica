@@ -71,6 +71,11 @@ struct PomodoroTimerView: View {
         .onAppear {
             loadAvailableData()
             setupDefaultSession()
+            syncWithTimerService()
+               
+               if let pendingEvent = NavigationService.shared.pendingTimerEvent {
+                   loadEventFromCalendar(pendingEvent)
+               }
         }
         .onDisappear {
             if isActive {
@@ -157,6 +162,7 @@ struct PomodoroTimerView: View {
             }
         }
     }
+    
     
     private var sessionSetupSection: some View {
         VStack(spacing: 20) {
@@ -563,6 +569,37 @@ struct PomodoroTimerView: View {
         
         UNUserNotificationCenter.current().add(request)
     }
+    
+    func loadEventFromCalendar(_ event: CalendarEvent) {
+        linkedCalendarEvent = event
+        
+        quickSessionType = event.type
+        timeRemaining = Int(event.endTime.timeIntervalSince(event.startTime))
+        
+        if event.type == .studySession, let subject = event.subject {
+            selectedSubject = subject
+        } else if event.type == .flashcards, let deckName = event.deckName {
+            selectedDeck = availableDecks.first { $0.name == deckName }
+        }
+        
+        if let sessionId = event.linkedSessionId {
+            let sessions = coreDataService.fetchPomodoroSessions()
+            currentPomodoroSession = sessions.first { $0.id == sessionId }
+        }
+        
+        print("Loaded event in PomodoroTimerView: \(event.title)")
+    }
+    
+    func syncWithTimerService() {
+        let timerService = PomodoroTimerService.shared
+        if timerService.isRunning, let event = timerService.currentEvent {
+            loadEventFromCalendar(event)
+            isActive = timerService.isRunning
+            timeRemaining = timerService.timeRemaining
+        }
+    }
+
+    
 }
 
 

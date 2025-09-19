@@ -10,59 +10,183 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var statsService: StatsService
-    @State private var selectedTab = 0
+    @StateObject private var timerService = PomodoroTimerService.shared
+    @StateObject private var navigationService = NavigationService.shared
     @State private var showCreatePage = false
+    @State private var showPomodoroView = false
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            TabView(selection: $selectedTab) {
-                HomeDashboardView()
-                    .tabItem { EmptyView() }
-                    .tag(0)
-                    .environment(\.managedObjectContext, CoreDataService.shared.context)
-                    .environmentObject(statsService)
-                    .environmentObject(authService)
+           ZStack(alignment: .bottom) {
+               TabView(selection: $navigationService.selectedTab) {
+                   HomeDashboardView()
+                       .tabItem { EmptyView() }
+                       .tag(0)
+                       .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(statsService)
+                       .environmentObject(authService)
+                   
+                   NotesExplorerView()
+                       .tabItem { EmptyView() }
+                       .tag(1)
+                       .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(statsService)
+                       .environmentObject(authService)
+                   
+                   Color.clear
+                       .tabItem { EmptyView() }
+                       .tag(2)
+                   
+                   CalendarView()
+                       .tabItem { EmptyView() }
+                       .tag(3)
+                       .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(statsService)
+                       .environmentObject(authService)
+                   
+                   StatsView()
+                       .tabItem { EmptyView() }
+                       .tag(4)
+                       .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(statsService)
+                       .environmentObject(authService)
+               }
+               .tabViewStyle(.page(indexDisplayMode: .never))
+               
+               VStack(spacing: 0) {
+                   if timerService.isRunning {
+                       timerStatusBar
+                   }
+                   
+                   CustomTabBar(selectedTab: $navigationService.selectedTab, showCreatePage: $showCreatePage)
+               }
+           }
+           .sheet(isPresented: $showCreatePage) {
+               CreatePageView()
+                   .environment(\.managedObjectContext, CoreDataService.shared.context)
+                   .environmentObject(statsService)
+                   .environmentObject(authService)
+           }
+           .fullScreenCover(isPresented: $showPomodoroView) {
+               PomodoroTimerView()
+                   .onAppear {
+                       if let event = navigationService.pendingTimerEvent {
+                           PomodoroTimerService.shared.currentEvent = event
+                           print("Loaded pending event: \(event.title)")
+                       }
+                   }
+
+                   .onDisappear {
+                       showPomodoroView = false
+                       navigationService.clearNavigation()
+                   }
+           }
+           .onChange(of: navigationService.shouldNavigateToTimer) { shouldNavigate in
+               if shouldNavigate {
+                   showPomodoroView = true
+               }
+           }
+       }
+    
+    private var timerStatusBar: some View {
+        HStack {
+            HStack(spacing: 12) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(1.2)
+                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: timerService.isRunning)
+                    
+                    Text("LIVE")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.red)
+                }
                 
-                NotesExplorerView()
-                    .tabItem { EmptyView() }
-                    .tag(1)
-                    .environment(\.managedObjectContext, CoreDataService.shared.context)
-                    .environmentObject(statsService)
-                    .environmentObject(authService)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(timerService.currentEvent?.title ?? "Study Session")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    
+                    if let subject = timerService.currentEvent?.subject {
+                        Text("Subject: \(subject)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    } else if let deckName = timerService.currentEvent?.deckName {
+                        Text("Deck: \(deckName)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
-                Color.clear
-                    .tabItem { EmptyView() }
-                    .tag(2)
+                Spacer()
                 
-                CalendarView()
-                    .tabItem { EmptyView() }
-                    .tag(3)
-                    .environment(\.managedObjectContext, CoreDataService.shared.context)
-                    .environmentObject(statsService)
-                    .environmentObject(authService)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(timerService.formattedTime)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    ProgressView(value: timerService.progress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                        .frame(width: 60)
+                }
                 
-                StatsView()
-                    .tabItem { EmptyView() }
-                    .tag(4)
-                    .environment(\.managedObjectContext, CoreDataService.shared.context)
-                    .environmentObject(statsService)
-                    .environmentObject(authService)
+                HStack(spacing: 8) {
+                    if timerService.isRunning {
+                        Button(action: {
+                            timerService.pauseSession()
+                        }) {
+                            Image(systemName: "pause.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(Color.orange))
+                        }
+                    } else {
+                        Button(action: {
+                            timerService.resumeSession()
+                        }) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(Color.green))
+                        }
+                    }
+                    
+                    Button(action: {
+                        timerService.stopSession()
+                    }) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.red))
+                    }
+                }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            
-            CustomTabBar(selectedTab: $selectedTab, showCreatePage: $showCreatePage)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .onTapGesture {
+                // Navigate back to full PomodoroTimerView
+                if let event = timerService.currentEvent {
+                    NavigationService.shared.navigateToTimer(with: event)
+                }
+            }
         }
-        .sheet(isPresented: $showCreatePage) {
-            CreatePageView()
-                .environment(\.managedObjectContext, CoreDataService.shared.context)
-                .environmentObject(statsService)
-                .environmentObject(authService)
-        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
     }
 }
-
-
-
 
 struct CustomTabBar: View {
     @Binding var selectedTab: Int
@@ -162,7 +286,7 @@ struct FloatingPlusButton: View {
                         LinearGradient(
                             gradient: Gradient(colors: [Color.blue.opacity(0.9), Color.purple.opacity(0.9)]),
                             startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            endPoint: .trailing
                         )
                     )
                     .frame(width: 52, height: 52)

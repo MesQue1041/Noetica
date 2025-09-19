@@ -18,7 +18,7 @@ struct MainTabView: View {
     var body: some View {
            ZStack(alignment: .bottom) {
                TabView(selection: $navigationService.selectedTab) {
-                   HomeDashboardView()
+                   HomeDashboardView()   // Main nav tabs
                        .tabItem { EmptyView() }
                        .tag(0)
                        .environment(\.managedObjectContext, CoreDataService.shared.context)

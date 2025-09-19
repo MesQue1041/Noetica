@@ -8,43 +8,82 @@
 import Foundation
 import SwiftUI
 
-struct CalendarEvent: Identifiable, Equatable {
-    let id = UUID()
+struct CalendarEvent: Identifiable, Equatable, Codable {
+    let id: UUID
     let title: String
     let description: String
     let startTime: Date
     let endTime: Date
     let type: EventType
-    let color: Color
+    let color: Color?
+    let subject: String?
+    let deckName: String?
+    var linkedSessionId: UUID?
+    var isCompleted: Bool
     
-    enum EventType: String, CaseIterable {
-        case study = "Study Session"
-        case pomodoro = "Pomodoro"
-        case flashcards = "Flashcards"
-        case breakTime = "Break"
-        case meeting = "Meeting"
-        case reminder = "Reminder"
-        
-        var icon: String {
-            switch self {
-            case .study: return "book.fill"
-            case .pomodoro: return "timer.circle.fill"
-            case .flashcards: return "rectangle.stack.fill"
-            case .breakTime: return "cup.and.saucer.fill"
-            case .meeting: return "person.2.fill"
-            case .reminder: return "bell.fill"
-            }
+    init(id: UUID = UUID(), title: String, description: String, startTime: Date, endTime: Date, type: EventType, color: Color? = nil, subject: String? = nil, deckName: String? = nil, linkedSessionId: UUID? = nil, isCompleted: Bool = false) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.startTime = startTime
+        self.endTime = endTime
+        self.type = type
+        self.color = color ?? type.defaultColor
+        self.subject = subject
+        self.deckName = deckName
+        self.linkedSessionId = linkedSessionId
+        self.isCompleted = isCompleted
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, startTime, endTime, type, subject, deckName, linkedSessionId, isCompleted
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decode(String.self, forKey: .description)
+        startTime = try container.decode(Date.self, forKey: .startTime)
+        endTime = try container.decode(Date.self, forKey: .endTime)
+        type = try container.decode(EventType.self, forKey: .type)
+        subject = try container.decodeIfPresent(String.self, forKey: .subject)
+        deckName = try container.decodeIfPresent(String.self, forKey: .deckName)
+        linkedSessionId = try container.decodeIfPresent(UUID.self, forKey: .linkedSessionId)
+        isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
+        color = type.defaultColor
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(description, forKey: .description)
+        try container.encode(startTime, forKey: .startTime)
+        try container.encode(endTime, forKey: .endTime)
+        try container.encode(type, forKey: .type)
+        try container.encodeIfPresent(subject, forKey: .subject)
+        try container.encodeIfPresent(deckName, forKey: .deckName)
+        try container.encodeIfPresent(linkedSessionId, forKey: .linkedSessionId)
+        try container.encode(isCompleted, forKey: .isCompleted)
+    }
+}
+
+enum EventType: String, CaseIterable, Codable {
+    case studySession = "Study Session"
+    case flashcards = "Flashcards"
+    
+    var icon: String {
+        switch self {
+        case .studySession: return "book.fill"
+        case .flashcards: return "rectangle.stack.fill"
         }
-        
-        var defaultColor: Color {
-            switch self {
-            case .study: return .blue
-            case .pomodoro: return .red
-            case .flashcards: return .green
-            case .breakTime: return .orange
-            case .meeting: return .purple
-            case .reminder: return .yellow
-            }
+    }
+    
+    var defaultColor: Color {
+        switch self {
+        case .studySession: return .blue
+        case .flashcards: return .green
         }
     }
 }
@@ -55,14 +94,14 @@ enum PomodoroSessionType: String, CaseIterable, Identifiable {
     case longBreak = "Long Break"
     
     var id: String { rawValue }
+    
     var duration: Int {
         switch self {
-        case .work: return 10
+        case .work: return 25
         case .shortBreak: return 5
-        case .longBreak: return 8 
+        case .longBreak: return 15
         }
     }
-    
     
     var color: Color {
         switch self {
@@ -101,59 +140,61 @@ enum CreateMode: String, CaseIterable {
 }
 
 struct StudySession: Identifiable {
-    let id = UUID()
+    let id: UUID
     let title: String
     let time: String
     let type: SessionType
     let subject: String
-}
-
-enum SessionType {
-    case pomodoro, flashcard
     
-    var icon: String {
-        switch self {
-        case .pomodoro: return "timer"
-        case .flashcard: return "rectangle.stack"
+    enum SessionType {
+        case pomodoro, flashcard
+        
+        var icon: String {
+            switch self {
+            case .pomodoro: return "timer"
+            case .flashcard: return "rectangle.stack"
+            }
         }
-    }
-    
-    var color: Color {
-        switch self {
-        case .pomodoro: return .orange
-        case .flashcard: return .purple
+        
+        var color: Color {
+            switch self {
+            case .pomodoro: return .orange
+            case .flashcard: return .purple
+            }
         }
     }
 }
 
 struct StudyRecommendation: Identifiable {
-    let id = UUID()
+    let id: UUID
     let title: String
     let reason: String
     let priority: Priority
     let type: RecommendationType
-}
-
-enum Priority {
-    case high, medium, low
+    let subject: String?
+    let deckName: String?
     
-    var color: Color {
-        switch self {
-        case .high: return .red
-        case .medium: return .orange
-        case .low: return .green
+    enum Priority {
+        case high, medium, low
+        
+        var color: Color {
+            switch self {
+            case .high: return .red
+            case .medium: return .orange
+            case .low: return .green
+            }
         }
     }
-}
-
-enum RecommendationType {
-    case flashcard, notes, pomodoro
     
-    var icon: String {
-        switch self {
-        case .flashcard: return "rectangle.stack"
-        case .notes: return "doc.text"
-        case .pomodoro: return "timer"
+    enum RecommendationType {
+        case flashcard, notes, pomodoro
+        
+        var icon: String {
+            switch self {
+            case .flashcard: return "rectangle.stack"
+            case .notes: return "doc.text"
+            case .pomodoro: return "timer"
+            }
         }
     }
 }
@@ -177,15 +218,15 @@ enum ExplorerMode: CaseIterable {
 }
 
 struct ExplorerSubject: Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let color: Color
     let noteCount: Int
-    let imageName: String
+    let imageName: String?
 }
 
 struct ExplorerDeck: Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let color: Color
     let cardCount: Int

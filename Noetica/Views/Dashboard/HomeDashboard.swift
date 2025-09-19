@@ -7,16 +7,17 @@
 
 import SwiftUI
 import CoreData
+import UserNotifications
 
 struct HomeDashboardView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var statsService: StatsService
+    @StateObject private var notificationService = NotificationService.shared
     @State private var currentTime = Date()
     @State private var showingPomodoroTimer = false
     @State private var showingARFlashcards = false
 
-    
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
         animation: .default
@@ -69,6 +70,7 @@ struct HomeDashboardView: View {
             statsService.updateStats()
             generateRecommendations()
             generateTodaysSessions()
+            scheduleSmartNotifications()
         }
         .onChange(of: allNotes.count) { _ in
             generateRecommendations()
@@ -83,39 +85,61 @@ struct HomeDashboardView: View {
         }
     }
 
-    
     private func startTimeUpdater() {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             currentTime = Date()
         }
     }
     
+    private func scheduleSmartNotifications() {
+        notificationService.scheduleDailyFlashcardReminder()
+        
+        let dueFlashcards = SpacedRepetitionService.shared.getDueFlashcards()
+        if !dueFlashcards.isEmpty {
+            notificationService.scheduleSpacedRepetitionReminder(for: dueFlashcards)
+        }
+        
+        let today = Date()
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: today)
+        let completedSessionsToday = CoreDataService.shared.fetchCompletedSessions(
+            from: startOfDay,
+            to: today
+        )
+        
+        if completedSessionsToday.isEmpty {
+            notificationService.scheduleStreakRiskReminder()
+        }
+    }
+    
     private func generateTodaysSessions() {
-          var sessions: [StudySession] = []
-          
-          let recentSubjects = Array(Set(allNotes.prefix(5).compactMap { $0.subject }))
-          for (index, subject) in recentSubjects.enumerated() {
-              let hour = 9 + (index * 2)
-              sessions.append(StudySession(
-                  title: "\(subject) Review",
-                  time: "\(hour):00 AM",
-                  type: .pomodoro,
-                  subject: subject
-              ))
-          }
-          
-          for (index, deck) in allDecks.prefix(2).enumerated() {
-              let hour = 14 + index 
-              sessions.append(StudySession(
-                  title: deck.name ?? "Flashcard Review",
-                  time: "\(hour):00 PM",
-                  type: .flashcard,
-                  subject: deck.subject ?? "General"
-              ))
-          }
-          
-          todaysSessions = sessions
-      }
+        var sessions: [StudySession] = []
+        
+        let recentSubjects = Array(Set(allNotes.prefix(5).compactMap { $0.subject }))
+        for (index, subject) in recentSubjects.enumerated() {
+            let hour = 9 + (index * 2)
+            sessions.append(StudySession(
+                id: UUID(),
+                title: "\(subject) Review",
+                time: "\(hour):00 AM",
+                type: .pomodoro,
+                subject: subject
+            ))
+        }
+        
+        for (index, deck) in allDecks.prefix(2).enumerated() {
+            let hour = 14 + index
+            sessions.append(StudySession(
+                id: UUID(),
+                title: deck.name ?? "Flashcard Review",
+                time: "\(hour):00 PM",
+                type: .flashcard,
+                subject: deck.subject ?? "General"
+            ))
+        }
+        
+        todaysSessions = sessions
+    }
       
     private func generateRecommendations() {
         var recs: [StudyRecommendation] = []
@@ -123,10 +147,13 @@ struct HomeDashboardView: View {
         let lowMasteryDecks = allDecks.filter { $0.mastery < 0.5 }
         for deck in lowMasteryDecks.prefix(2) {
             recs.append(StudyRecommendation(
+                id: UUID(),
                 title: "Review \(deck.name ?? "Flashcards")",
                 reason: "Low mastery level (\(Int(deck.mastery * 100))%)",
                 priority: deck.mastery < 0.3 ? .high : .medium,
-                type: .flashcard
+                type: .flashcard,
+                subject: nil,
+                deckName: deck.name
             ))
         }
         
@@ -138,19 +165,25 @@ struct HomeDashboardView: View {
         let oldSubjects = Array(Set(oldNotes.prefix(3).compactMap { $0.subject }))
         for subject in oldSubjects {
             recs.append(StudyRecommendation(
+                id: UUID(),
                 title: "Review \(subject) Notes",
                 reason: "Haven't studied in over a week",
                 priority: .medium,
-                type: .notes
+                type: .notes,
+                subject: subject,
+                deckName: nil
             ))
         }
         
         if recs.isEmpty {
             recs.append(StudyRecommendation(
+                id: UUID(),
                 title: "Start Your First Study Session",
                 reason: "Build a consistent learning habit",
                 priority: .high,
-                type: .pomodoro
+                type: .pomodoro,
+                subject: nil,
+                deckName: nil
             ))
         }
         
@@ -225,7 +258,6 @@ struct DashboardStatCard: View {
     }
 }
 
-
 struct HeaderSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -270,7 +302,6 @@ struct HeaderSection: View {
         }
     }
 }
-
 struct UpcomingSessionsSection: View {
     let sessions: [StudySession]
     @Binding var showingPomodoroTimer: Bool
@@ -411,7 +442,6 @@ struct QuickAccessSection: View {
                     color: .purple,
                     action: { showingARFlashcards = true }
                 )
-
                 
                 QuickActionCard(
                     title: "Quick Note",

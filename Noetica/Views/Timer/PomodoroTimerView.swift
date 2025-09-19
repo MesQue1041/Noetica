@@ -6,496 +6,630 @@
 //
 
 import SwiftUI
+import AVFoundation
+import UserNotifications
 
 struct PomodoroTimerView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @EnvironmentObject private var statsService: StatsService
-    @EnvironmentObject private var authService: AuthService
-   
-    @State private var selectedSession: PomodoroSessionType = .work
-    @State private var timeRemaining: Int = PomodoroSessionType.work.duration
-    @State private var timerRunning = false
-    @State private var selectedSubject: String = "General"
-    @State private var showSubjectPicker = false
-    @State private var timer: Timer? = nil
-    @State private var progress: Double = 1.0
-    @State private var isAnimating = false
-    @State private var completedSessions = 0
+    @State private var timeRemaining = 1500
+    @State private var isActive = false
+    @State private var showingBreak = false
+    @State private var sessionType: PomodoroSessionType = .work
+    @State private var currentSession = 0
+    @State private var totalSessions = 4
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var showingSessionComplete = false
+    
+    @State private var linkedCalendarEvent: CalendarEvent?
     @State private var currentPomodoroSession: PomodoroSession?
-    @State private var showSessionCompleteAlert = false
+    @State private var selectedSubject: String = ""
+    @State private var selectedDeck: Deck?
+    @State private var availableSubjects: [String] = []
+    @State private var availableDecks: [Deck] = []
+    @State private var showingSubjectSelection = false
     
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Note.subject, ascending: true)],
-        animation: .default
-    ) private var notes: FetchedResults<Note>
+    @State private var isQuickSession = false
+    @State private var quickSessionType: EventType = .studySession
     
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Deck.name, ascending: true)],
-        animation: .default
-    ) private var decks: FetchedResults<Deck>
+    @EnvironmentObject private var authService: AuthService
+    @StateObject private var coreDataService = CoreDataService.shared
     
-    var availableSubjects: [String] {
-        let noteSubjects = Set(notes.compactMap { $0.subject }.filter { !$0.isEmpty })
-        let deckNames = Set(decks.compactMap { $0.name }.filter { !$0.isEmpty })
-        let allSubjects = Array(noteSubjects.union(deckNames)).sorted()
-        return allSubjects.isEmpty ? ["General"] : ["General"] + allSubjects
-    }
+    private let colors = [
+        PomodoroSessionType.work: Color.red,
+        PomodoroSessionType.shortBreak: Color.green,
+        PomodoroSessionType.longBreak: Color.blue
+    ]
     
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: 32) {
-                    VStack(spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Focus Timer")
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.primary)
-                                
-                                Text("Stay productive with the Pomodoro technique")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal, 24)
-                        
-                        SessionTypeSelector(selectedSession: $selectedSession, onSelectionChange: resetTimer)
-                            .padding(.horizontal, 24)
+                VStack(spacing: 30) {
+                    
+                    headerSection
+                    
+                    timerDisplaySection(geometry: geometry)
+                    
+                    if !isActive && currentPomodoroSession == nil && !isQuickSession {
+                        sessionSetupSection
                     }
                     
-                    VStack(spacing: 24) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color(.systemGray5), lineWidth: 8)
-                                .frame(width: 280, height: 280)
-                            
-                            Circle()
-                                .trim(from: 0, to: CGFloat(progress))
-                                .stroke(
-                                    selectedSession.color,
-                                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                                )
-                                .rotationEffect(.degrees(-90))
-                                .frame(width: 280, height: 280)
-                                .animation(.easeInOut(duration: 0.3), value: progress)
-                            
-                            VStack(spacing: 12) {
-                                Image(systemName: selectedSession.icon)
-                                    .font(.system(size: 32, weight: .medium))
-                                    .foregroundColor(selectedSession.color)
-                                    .scaleEffect(timerRunning ? 1.1 : 1.0)
-                                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: timerRunning)
-                                
-                                Text(timeString(timeRemaining))
-                                    .font(.system(size: 48, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.primary)
-                                    .contentTransition(.numericText())
-                                
-                                Text(selectedSession.rawValue)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(selectedSession.color)
-                                    .textCase(.uppercase)
-                                    .tracking(1.2)
-                            }
-                        }
-                        .padding(.vertical, 20)
-                        
-                        StatsCard(completedSessions: completedSessions, currentSession: selectedSession)
+                    controlButtonsSection
+                    
+                    sessionProgressSection
+                    
+                    if !isActive && currentPomodoroSession == nil {
+                        quickActionsSection
                     }
                     
-                    SubjectCard(
-                        selectedSubject: $selectedSubject,
-                        availableSubjects: availableSubjects,
-                        showSubjectPicker: $showSubjectPicker
-                    )
-                    .padding(.horizontal, 24)
-                    
-                    VStack(spacing: 20) {
-                        Button(action: {
-                            timerRunning ? pauseTimer() : startTimer()
-                        }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: timerRunning ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .semibold))
-                                
-                                Text(timerRunning ? "Pause" : "Start")
-                                    .font(.system(size: 18, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(selectedSession.color)
-                            .cornerRadius(16)
-                            .shadow(color: selectedSession.color.opacity(0.3), radius: 8, x: 0, y: 4)
-                            .scaleEffect(timerRunning ? 0.98 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: timerRunning)
-                        }
-                        .padding(.horizontal, 24)
-                        
-                        HStack(spacing: 20) {
-                            ControlButton(
-                                icon: "arrow.counterclockwise",
-                                label: "Reset",
-                                color: .orange,
-                                action: resetTimer
-                            )
-                            
-                            ControlButton(
-                                icon: "stop.fill",
-                                label: "Stop",
-                                color: .red,
-                                action: stopTimer
-                            )
-                            
-                            ControlButton(
-                                icon: "music.note",
-                                label: "Music",
-                                color: .purple,
-                                action: {}
-                            )
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                    
-                    Spacer(minLength: 40)
+                    Spacer(minLength: 50)
                 }
+                .padding(.horizontal, 24)
                 .padding(.top, 20)
             }
-            .background(Color(.systemGroupedBackground))
         }
-        .sheet(isPresented: $showSubjectPicker) {
-            SubjectPickerView(
-                selectedSubject: $selectedSubject,
-                availableSubjects: availableSubjects
-            )
+        .background(backgroundColor.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadAvailableData()
+            setupDefaultSession()
         }
-        .alert("Session Complete!", isPresented: $showSessionCompleteAlert) {
-            Button("Great!") {
-                if selectedSession == .work {
-                    selectedSession = completedSessions % 4 == 3 ? .longBreak : .shortBreak
-                } else {
-                    selectedSession = .work
-                }
-                resetTimer()
+        .onDisappear {
+            if isActive {
+                pauseTimer()
+            }
+        }
+        .alert("Session Complete!", isPresented: $showingSessionComplete) {
+            Button("Continue") {
+                completeCurrentSession()
+            }
+            Button("Take Break") {
+                startBreakSession()
             }
         } message: {
-            Text("You've completed a \(selectedSession.rawValue.lowercased()) session! Well done!")
+            Text("Great work! You've completed your \(sessionType.rawValue.lowercased()) session.")
         }
-        .onAppear {
-            resetTimer()
-            loadTodaysCompletedSessions()
-            withAnimation(.easeOut(duration: 0.8)) {
-                isAnimating = true
-            }
-        }
-        .onDisappear(perform: stopTimer)
     }
     
-    private func startTimer() {
-        timerRunning = true
+    
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            Text(getSessionTitle())
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+            
+            if let subject = getSessionSubtitle() {
+                Text(subject)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(sessionType.color.opacity(0.1))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(sessionType.color.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            
+            if linkedCalendarEvent != nil {
+                Label("Linked to calendar event", systemImage: "link.circle")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func timerDisplaySection(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .stroke(sessionType.color.opacity(0.1), lineWidth: 12)
+                    .frame(width: min(geometry.size.width - 80, 280), height: min(geometry.size.width - 80, 280))
+                
+                Circle()
+                    .trim(from: 0.0, to: CGFloat(progress))
+                    .stroke(
+                        LinearGradient(
+                            colors: [sessionType.color.opacity(0.8), sessionType.color],
+                            startPoint: .topTrailing,
+                            endPoint: .bottomLeading
+                        ),
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                    )
+                    .frame(width: min(geometry.size.width - 80, 280), height: min(geometry.size.width - 80, 280))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 1.0), value: progress)
+                
+                VStack(spacing: 8) {
+                    Text(timeString)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .monospacedDigit()
+                    
+                    Text(sessionType.rawValue)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(sessionType.color)
+                        .textCase(.uppercase)
+                        .tracking(1)
+                }
+            }
+        }
+    }
+    
+    private var sessionSetupSection: some View {
+        VStack(spacing: 20) {
+            Text("Setup Your Session")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            VStack(spacing: 12) {
+                Text("Session Type")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 16) {
+                    SessionTypeButton(
+                        title: "Study Session",
+                        icon: "book.fill",
+                        isSelected: quickSessionType == .studySession,
+                        color: .blue
+                    ) {
+                        quickSessionType = .studySession
+                        selectedDeck = nil
+                    }
+                    
+                    SessionTypeButton(
+                        title: "Flashcards",
+                        icon: "rectangle.stack.fill",
+                        isSelected: quickSessionType == .flashcards,
+                        color: .green
+                    ) {
+                        quickSessionType = .flashcards
+                        selectedSubject = ""
+                    }
+                }
+            }
+            
+            if quickSessionType == .studySession {
+                subjectSelectionSection
+            } else {
+                deckSelectionSection
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+    
+    private var subjectSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Study Subject")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            if availableSubjects.isEmpty {
+                TextField("Enter subject name", text: $selectedSubject)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+            } else {
+                VStack(spacing: 8) {
+                    Picker("Subject", selection: $selectedSubject) {
+                        Text("Select Subject").tag("")
+                        ForEach(availableSubjects, id: \.self) { subject in
+                            Text(subject).tag(subject)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    
+                    TextField("Or enter new subject", text: $selectedSubject)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 14))
+                }
+            }
+        }
+    }
+    
+    private var deckSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Flashcard Deck")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            if availableDecks.isEmpty {
+                Text("No decks available. Create a deck first.")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.systemGray6))
+                    )
+            } else {
+                Picker("Deck", selection: $selectedDeck) {
+                    Text("Select Deck").tag(nil as Deck?)
+                    ForEach(availableDecks, id: \.id) { deck in
+                        Text(deck.name ?? "Unnamed Deck").tag(deck as Deck?)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+            }
+        }
+    }
+    
+    private var controlButtonsSection: some View {
+        HStack(spacing: 20) {
+            if isActive {
+                Button(action: pauseTimer) {
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            Circle()
+                                .fill(Color.orange)
+                        )
+                        .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                
+                Button(action: stopTimer) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            Circle()
+                                .fill(Color.red)
+                        )
+                        .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                
+            } else {
+                Button(action: startTimer) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                        
+                        Text(currentPomodoroSession != nil ? "Resume" : "Start Session")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        LinearGradient(
+                            colors: [sessionType.color.opacity(0.8), sessionType.color],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                    .shadow(color: sessionType.color.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .disabled(!canStartSession)
+            }
+        }
+    }
+    
+    private var sessionProgressSection: some View {
+        VStack(spacing: 16) {
+            Text("Session \(currentSession + 1) of \(totalSessions)")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 8) {
+                ForEach(0..<totalSessions, id: \.self) { index in
+                    Circle()
+                        .fill(index <= currentSession ? sessionType.color : Color(.systemGray4))
+                        .frame(width: 12, height: 12)
+                        .scaleEffect(index == currentSession ? 1.2 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentSession)
+                }
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+    
+    private var quickActionsSection: some View {
+        VStack(spacing: 16) {
+            Text("Quick Actions")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            HStack(spacing: 16) {
+                QuickActionButton(
+                    title: "25 min",
+                    subtitle: "Focus",
+                    color: .red,
+                    action: { setQuickSession(minutes: 25) }
+                )
+                
+                QuickActionButton(
+                    title: "15 min",
+                    subtitle: "Quick Study",
+                    color: .blue,
+                    action: { setQuickSession(minutes: 15) }
+                )
+                
+                QuickActionButton(
+                    title: "45 min",
+                    subtitle: "Deep Work",
+                    color: .purple,
+                    action: { setQuickSession(minutes: 45) }
+                )
+            }
+        }
+    }
+    
+    
+    private var backgroundColor: Color {
+        Color(.systemGroupedBackground)
+    }
+    
+    private var progress: Double {
+        let totalTime = Double(sessionType.duration * 60)
+        return (totalTime - Double(timeRemaining)) / totalTime
+    }
+    
+    private var timeString: String {
+        let minutes = timeRemaining / 60
+        let seconds = timeRemaining % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    private var canStartSession: Bool {
+        if quickSessionType == .studySession {
+            return !selectedSubject.isEmpty
+        } else {
+            return selectedDeck != nil
+        }
+    }
+    
+    
+    private func getSessionTitle() -> String {
+        if let event = linkedCalendarEvent {
+            return event.title
+        } else if quickSessionType == .studySession {
+            return selectedSubject.isEmpty ? "Study Session" : "Study: \(selectedSubject)"
+        } else {
+            return selectedDeck?.name.map { "Flashcards: \($0)" } ?? "Flashcard Review"
+        }
+    }
+    
+    private func getSessionSubtitle() -> String? {
+        if let event = linkedCalendarEvent {
+            if let subject = event.subject {
+                return "Subject: \(subject)"
+            } else if let deckName = event.deckName {
+                return "Deck: \(deckName)"
+            }
+        }
+        return nil
+    }
+    
+    private func loadAvailableData() {
+        availableSubjects = coreDataService.getUniqueSubjects()
+        availableDecks = coreDataService.fetchDecks()
+    }
+    
+    private func setupDefaultSession() {
+        timeRemaining = sessionType.duration * 60
         
-        currentPomodoroSession = CoreDataService.shared.createPomodoroSession(
-            subjectOrDeck: selectedSubject,
-            sessionType: selectedSession.rawValue,
-            duration: Int16(selectedSession.duration / 60)
+        if !availableSubjects.isEmpty && selectedSubject.isEmpty {
+            selectedSubject = availableSubjects[0]
+        }
+        if !availableDecks.isEmpty && selectedDeck == nil {
+            selectedDeck = availableDecks[0]
+        }
+    }
+    
+    private func setQuickSession(minutes: Int) {
+        sessionType = .work
+        timeRemaining = minutes * 60
+    }
+    
+    
+    private func startTimer() {
+        if currentPomodoroSession == nil {
+            createLinkedCalendarEventAndSession()
+        }
+        
+        isActive = true
+        startTimerLoop()
+    }
+    
+    private func createLinkedCalendarEventAndSession() {
+        let now = Date()
+        let duration = TimeInterval(timeRemaining)
+        let endTime = now.addingTimeInterval(duration)
+        
+        let calendarEvent = coreDataService.createCalendarEvent(
+            title: getSessionTitle(),
+            description: "Pomodoro session created from timer",
+            startTime: now,
+            endTime: endTime,
+            type: quickSessionType,
+            subject: quickSessionType == .studySession ? selectedSubject : nil,
+            deckName: quickSessionType == .flashcards ? selectedDeck?.name : nil,
+            autoCreateSession: false
         )
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-                progress = Double(timeRemaining) / Double(selectedSession.duration)
+        let pomodoroSession = coreDataService.createPomodoroSession(
+            subjectOrDeck: quickSessionType == .studySession ? selectedSubject : (selectedDeck?.name ?? "Unknown"),
+            sessionType: quickSessionType.rawValue,
+            duration: Int16(timeRemaining / 60),
+            linkedEventId: calendarEvent.id,
+            startTime: now
+        )
+        
+        linkedCalendarEvent = calendarEvent
+        currentPomodoroSession = pomodoroSession
+        
+        print("Created linked calendar event and Pomodoro session")
+    }
+    
+    private func startTimerLoop() {
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            if self.isActive && self.timeRemaining > 0 {
+                self.timeRemaining -= 1
+            } else if self.timeRemaining <= 0 {
+                timer.invalidate()
+                self.sessionComplete()
             } else {
-                completeSession()
+                timer.invalidate()
             }
         }
     }
     
     private func pauseTimer() {
-        timerRunning = false
-        timer?.invalidate()
+        isActive = false
     }
     
     private func stopTimer() {
-        timer?.invalidate()
-        timerRunning = false
-        
-        currentPomodoroSession = nil
-    }
-    
-    private func completeSession() {
-        timer?.invalidate()
-        timerRunning = false
+        isActive = false
+        timeRemaining = sessionType.duration * 60
         
         if let session = currentPomodoroSession {
-            CoreDataService.shared.completePomodoroSession(session)
-            completedSessions += 1
-            statsService.updateStats()
+            currentPomodoroSession = nil
+            linkedCalendarEvent = nil
+        }
+    }
+    
+    private func sessionComplete() {
+        isActive = false
+        playCompletionSound()
+        showingSessionComplete = true
+        
+        if let session = currentPomodoroSession {
+            coreDataService.markPomodoroSessionCompleted(sessionId: session.id!)
         }
         
-        showSessionCompleteAlert = true
+        if let event = linkedCalendarEvent {
+            coreDataService.markEventCompleted(event)
+        }
+   
+    }
+    
+    private func completeCurrentSession() {
+        currentSession += 1
         currentPomodoroSession = nil
-    }
-    
-    private func resetTimer() {
-        stopTimer()
-        timeRemaining = selectedSession.duration
-        progress = 1.0
-    }
-    
-    private func loadTodaysCompletedSessions() {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        linkedCalendarEvent = nil
         
-        let todaySessions = CoreDataService.shared.fetchCompletedSessions(from: today, to: tomorrow)
-        completedSessions = todaySessions.count
-    }
-    
-    private func timeString(_ seconds: Int) -> String {
-        let min = seconds / 60
-        let sec = seconds % 60
-        return String(format: "%02d:%02d", min, sec)
-    }
-}
-
-struct SessionTypeSelector: View {
-    @Binding var selectedSession: PomodoroSessionType
-    let onSelectionChange: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(PomodoroSessionType.allCases) { session in
-                Button(action: {
-                    selectedSession = session
-                    onSelectionChange()
-                }) {
-                    VStack(spacing: 8) {
-                        Image(systemName: session.icon)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(selectedSession == session ? .white : session.color)
-                        
-                        Text(session.rawValue)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(selectedSession == session ? .white : session.color)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 70)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(selectedSession == session ? session.color : Color(.systemBackground))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(session.color, lineWidth: selectedSession == session ? 0 : 2)
-                            )
-                    )
-                    .shadow(color: selectedSession == session ? session.color.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
-                    .scaleEffect(selectedSession == session ? 1.02 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedSession)
-                }
-            }
+        if currentSession < totalSessions {
+            sessionType = .work
+            timeRemaining = sessionType.duration * 60
+        } else {
+            currentSession = 0
+            sessionType = .work
+            timeRemaining = sessionType.duration * 60
         }
     }
-}
-
-struct StatsCard: View {
-    let completedSessions: Int
-    let currentSession: PomodoroSessionType
     
-    var body: some View {
-        HStack(spacing: 20) {
-            VStack(spacing: 4) {
-                Text("\(completedSessions)")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(currentSession.color)
-                
-                Text("Today")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            
-            Divider()
-                .frame(height: 40)
-            
-            VStack(spacing: 4) {
-                Text("\(currentSession.duration / 60)")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(currentSession.color)
-                
-                Text("Minutes")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            
-            Divider()
-                .frame(height: 40)
-            
-            VStack(spacing: 4) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.orange)
-                
-                Text("Focus")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
+    private func startBreakSession() {
+        currentPomodoroSession = nil
+        linkedCalendarEvent = nil
+        
+        sessionType = (currentSession % 4 == 0) ? .longBreak : .shortBreak
+        timeRemaining = sessionType.duration * 60
+    }
+    
+    private func playCompletionSound() {
+        guard let url = Bundle.main.url(forResource: "completion", withExtension: "mp3") else { return }
+        
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+        } catch {
+            print("Failed to play completion sound: \(error)")
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-        )
-        .padding(.horizontal, 24)
+    }
+    
+    private func sendCompletionNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "Session Complete!"
+        content.body = "Great work! You've completed your \(sessionType.rawValue.lowercased()) session."
+        content.sound = UNNotificationSound.default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: "session_complete", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request)
     }
 }
 
-struct SubjectCard: View {
-    @Binding var selectedSubject: String
-    let availableSubjects: [String]
-    @Binding var showSubjectPicker: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "book.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.blue)
-                
-                Text("Focus Subject")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            
-            Button(action: { showSubjectPicker.toggle() }) {
-                HStack(spacing: 12) {
-                    Text(selectedSubject)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                )
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-    }
-}
 
-struct ControlButton: View {
+struct SessionTypeButton: View {
+    let title: String
     let icon: String
-    let label: String
+    let isSelected: Bool
     let color: Color
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(color)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : color)
                 
-                Text(label)
+                Text(title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundColor(isSelected ? .white : color)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 70)
+            .frame(height: 60)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(color.opacity(0.3), lineWidth: 2)
-                    )
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? color : Color(.systemGray6))
             )
-            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+            )
         }
-        .buttonStyle(ScaleButtonStyle())
     }
 }
 
-
-struct SubjectPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedSubject: String
-    let availableSubjects: [String]
+struct QuickActionButton: View {
+    let title: String
+    let subtitle: String
+    let color: Color
+    let action: () -> Void
     
     var body: some View {
-        NavigationView {
-            List {
-                Section {
-                    ForEach(availableSubjects, id: \.self) { subject in
-                        Button(action: {
-                            selectedSubject = subject
-                            dismiss()
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(subject)
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(.primary)
-                                    
-                                    if subject != "General" {
-                                        Text("From your notes/decks")
-                                            .font(.system(size: 12, weight: .regular))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                if subject == selectedSubject {
-                                    Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
-                                        .font(.system(size: 16, weight: .semibold))
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(color)
+                
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
             }
-            .navigationTitle("Select Subject")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(color.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+            )
         }
     }
 }
 
-struct PomodoroTimerView_Previews: PreviewProvider {
-    static var previews: some View {
-        PomodoroTimerView()
-            .environment(\.managedObjectContext, CoreDataService.shared.context)
-            .environmentObject(StatsService())
-    }
+#Preview {
+    PomodoroTimerView()
+        .environmentObject(AuthService())
 }

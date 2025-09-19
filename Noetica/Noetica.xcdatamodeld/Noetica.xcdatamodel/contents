@@ -37,6 +37,7 @@
         <attribute name="duration" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="linkedCalendarEventId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="sessionType" optional="YES" attributeType="String"/>
         <attribute name="startTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="subjectOrDeck" optional="YES" attributeType="String"/>

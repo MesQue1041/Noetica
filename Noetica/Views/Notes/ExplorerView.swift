@@ -19,7 +19,6 @@ struct NotesExplorerView: View {
     @State private var showingCreateDeck = false
     @State private var showingARReview = false
 
-    
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
         animation: .default
@@ -34,6 +33,7 @@ struct NotesExplorerView: View {
         let subjectStats = statsService.getSubjectStats()
         return subjectStats.map { stat in
             ExplorerSubject(
+                id: UUID(),
                 name: stat.subject,
                 color: stat.color,
                 noteCount: stat.noteCount,
@@ -46,6 +46,7 @@ struct NotesExplorerView: View {
         return decks.map { deck in
             let flashcardCount = (deck.flashcards as? Set<Flashcard>)?.count ?? 0
             return ExplorerDeck(
+                id: UUID(),
                 name: deck.name ?? "Untitled Deck",
                 color: Color.randomStudyColor(),
                 cardCount: flashcardCount,
@@ -332,7 +333,6 @@ struct ExplorerHeaderSection: View {
         )
     }
 }
-
 struct ModernExplorerSubjectTile: View {
     let subject: ExplorerSubject
     @State private var isPressed = false
@@ -349,7 +349,7 @@ struct ModernExplorerSubjectTile: View {
                             .fill(subject.color.opacity(0.15))
                             .frame(width: 72, height: 72)
                         
-                        Image(systemName: subject.imageName)
+                        Image(systemName: subject.imageName ?? "book.fill")
                             .font(.system(size: 28, weight: .semibold))
                             .foregroundColor(subject.color)
                     }
@@ -421,7 +421,6 @@ struct ModernExplorerSubjectTile: View {
         }
     }
 }
-
 
 struct ModernExplorerDeckTile: View {
     let deck: ExplorerDeck
@@ -532,7 +531,6 @@ struct ModernExplorerDeckTile: View {
     }
 }
 
-
 struct SubjectDetailView: View {
     let subject: ExplorerSubject
     @Environment(\.managedObjectContext) private var viewContext
@@ -549,72 +547,71 @@ struct SubjectDetailView: View {
     }
     
     var body: some View {
-            List {
-                if notes.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "doc.text")
-                            .font(.system(size: 48, weight: .light))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No notes yet")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        
-                        Text("Create your first note in \(subject.name)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(notes, id: \.objectID) { note in
-                        NavigationLink(destination: NoteDetailView(note: note)) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(note.title ?? "Untitled Note")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                
-                                if let body = note.body, !body.isEmpty {
-                                    Text(body)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(3)
-                                }
-                                
-                                HStack {
-                                    Text(note.dateModified?.formatted(date: .abbreviated, time: .omitted) ?? "")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Spacer()
-                                    
-                                    Text(subject.name)
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(subject.color)
-                                        .cornerRadius(8)
-                                }
+        List {
+            if notes.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 48, weight: .light))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No notes yet")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    Text("Create your first note in \(subject.name)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(notes, id: \.objectID) { note in
+                    NavigationLink(destination: NoteDetailView(note: note)) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(note.title ?? "Untitled Note")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            if let body = note.body, !body.isEmpty {
+                                Text(body)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(3)
                             }
-                            .padding(.vertical, 4)
+                            
+                            HStack {
+                                Text(note.dateModified?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Text(subject.name)
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(subject.color)
+                                    .cornerRadius(8)
+                            }
                         }
-                    }
-                    .onDelete(perform: deleteNotes)
-                }
-            }
-            .navigationTitle(subject.name)
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                    }) {
-                        Image(systemName: "plus")
+                        .padding(.vertical, 4)
                     }
                 }
+                .onDelete(perform: deleteNotes)
             }
-        
+        }
+        .navigationTitle(subject.name)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                }) {
+                    Image(systemName: "plus")
+                }
+            }
+        }
     }
     
     private func deleteNotes(offsets: IndexSet) {
@@ -663,7 +660,6 @@ struct NoteDetailView: View {
     }
 }
 
-
 struct DeckDetailView: View {
     let deck: ExplorerDeck
     @Environment(\.managedObjectContext) private var viewContext
@@ -690,6 +686,7 @@ struct DeckDetailView: View {
             (card1.dateCreated ?? Date.distantPast) > (card2.dateCreated ?? Date.distantPast)
         } ?? []
     }
+    
     var body: some View {
         List {
             if flashcards.isEmpty {
@@ -802,7 +799,6 @@ struct DeckDetailView: View {
         }
     }
 }
-
 
 struct NotesExplorerView_Previews: PreviewProvider {
     static var previews: some View {

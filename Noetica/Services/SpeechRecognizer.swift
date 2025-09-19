@@ -11,8 +11,8 @@ import AVFoundation
 import SwiftUI
 
 class SpeechRecognizer: ObservableObject {
-    @Published var transcript = ""
-    @Published var isRecording = false
+    @Published var transcript = ""     // final text
+    @Published var isRecording = false    // dynamic text which changes when we speak
     @Published var isAuthorized = false
     @Published var errorMessage = ""
     
@@ -24,6 +24,7 @@ class SpeechRecognizer: ObservableObject {
     init() {
         recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
         
+        // Request for microphone and speech recognition permissions
         Task {
             await requestPermissions()
         }
@@ -31,13 +32,14 @@ class SpeechRecognizer: ObservableObject {
     
     @MainActor
     private func requestPermissions() async {
+        // Permission for speech
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)
             }
         }
         
-        
+        // Permission for microphone
         let audioStatus = await withCheckedContinuation { continuation in
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 continuation.resume(returning: granted)
@@ -65,7 +67,7 @@ class SpeechRecognizer: ObservableObject {
         
         stopRecording()
         
-      
+        // configuration
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -83,6 +85,7 @@ class SpeechRecognizer: ObservableObject {
         
         request.shouldReportPartialResults = true
         
+        // Audio engine to capture the microphone input.
         audioEngine = AVAudioEngine()
         guard let audioEngine = audioEngine else {
             errorMessage = "Unable to create audio engine"
@@ -105,6 +108,7 @@ class SpeechRecognizer: ObservableObject {
             return
         }
         
+        // This is where the audio input is recognized
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             DispatchQueue.main.async {
                 if let result = result {

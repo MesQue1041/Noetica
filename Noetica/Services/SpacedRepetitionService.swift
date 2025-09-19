@@ -68,12 +68,14 @@ class SpacedRepetitionService: ObservableObject {
         
         flashcard.nextReviewDate = Calendar.current.date(byAdding: .day, value: newInterval, to: now) ?? now
         
+        // Streak of correct answers is recorded for stats
         if quality.rawValue >= 2 {
             flashcard.correctStreak += 1
         } else {
             flashcard.correctStreak = 0
         }
         
+        // Lower quality means higher difficulty rating
         flashcard.difficultyRating = Int16(5 - quality.rawValue)
         
         
@@ -86,12 +88,13 @@ class SpacedRepetitionService: ObservableObject {
 
 
 
-    
+    // This uses easiness factor to calculate when next to review flashcard
     private func calculateSM2(quality: Int, easiness: Double, repetitions: Int, previousInterval: Int) -> (Double, Int, Int) {
         var newEasiness = easiness
         var newRepetitions = repetitions
         var newInterval = previousInterval
         
+        // this is the formula
         let qualityDiff = 5 - quality
         let qualityFactor = Double(qualityDiff)
         let innerCalc = 0.08 + qualityFactor * 0.02
@@ -103,12 +106,14 @@ class SpacedRepetitionService: ObservableObject {
             newEasiness = 1.3
         }
         
+        // If quality < 3, reset repetitions and interval
         if quality < 3 {
             newRepetitions = 0
             newInterval = 1
         } else {
             newRepetitions += 1
             
+            // Intervak is also based on number of successful reviews
             switch newRepetitions {
             case 1:
                 newInterval = 1
@@ -122,6 +127,7 @@ class SpacedRepetitionService: ObservableObject {
         return (newEasiness, newRepetitions, newInterval)
     }
 
+    // Fetch cards due to review now
     func getDueFlashcards(for deck: Deck? = nil) -> [Flashcard] {
         let request: NSFetchRequest<Flashcard> = Flashcard.fetchRequest()
         let now = Date()
@@ -171,7 +177,7 @@ class SpacedRepetitionService: ObservableObject {
         }
     }
 
-    
+    // Update mastery score of a decj
     private func updateDeckMastery(_ deck: Deck) {
         let request: NSFetchRequest<Flashcard> = Flashcard.fetchRequest()
         request.predicate = NSPredicate(format: "deck == %@", deck)
@@ -202,7 +208,7 @@ class SpacedRepetitionService: ObservableObject {
 
 
 
-    
+    // For quick stats
     func getStudySessionStats(for deck: Deck? = nil) -> StudySessionStats {
         let dueCards = getDueFlashcards(for: deck)
         let newCards = getNewFlashcards(for: deck)

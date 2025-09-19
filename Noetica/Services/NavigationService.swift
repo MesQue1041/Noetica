@@ -17,7 +17,7 @@ class NavigationService: ObservableObject {
     
     private init() {}
     
-    func navigateToTimer(with event: CalendarEvent) {
+    func navigateToTimer(with event: CalendarEvent) {     // To go from calendar to pomodoro view
         pendingTimerEvent = event
         
         shouldNavigateToTimer = true

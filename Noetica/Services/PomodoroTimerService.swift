@@ -106,7 +106,7 @@ class PomodoroTimerService: ObservableObject {
         }
     }
     
-    private func startBackgroundTask() {
+    private func startBackgroundTask() {      // This is for when I leave pomodoro page
         endBackgroundTask()
         
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "PomodoroTimer") { [weak self] in
@@ -134,7 +134,7 @@ class PomodoroTimerService: ObservableObject {
         }
     }
     
-    private func sendCompletionNotification() {
+    private func sendCompletionNotification() {    // Push notifications
         let content = UNMutableNotificationContent()
         content.title = "Session Complete!"
         content.body = "Great work! You've completed your study session."

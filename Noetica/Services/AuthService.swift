@@ -35,7 +35,7 @@ class AuthService: ObservableObject {
         }
     }
     
-    func signUp(email: String, password: String, username: String) {
+    func signUp(email: String, password: String, username: String) {   // FUnction to sign up
         guard !email.isEmpty, !password.isEmpty, !username.isEmpty else {
             errorMessage = "Please fill in all fields"
             return
@@ -100,7 +100,7 @@ class AuthService: ObservableObject {
         }
     }
     
-    func signIn(email: String, password: String) {
+    func signIn(email: String, password: String) {   // Function to sign in
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please fill in all fields"
             return
@@ -159,7 +159,7 @@ class AuthService: ObservableObject {
     }
     
     
-    private func isValidEmail(_ email: String) -> Bool {
+    private func isValidEmail(_ email: String) -> Bool {   // This uses regex to validate email format
         let emailFormat = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
         let emailPredicate = NSPredicate(format:"SELF MATCHES %@", emailFormat)
         return emailPredicate.evaluate(with: email)

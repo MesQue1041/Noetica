@@ -14,6 +14,7 @@ class OCRService: ObservableObject {
     @Published var isProcessing = false
     @Published var errorMessage = ""
     
+    // This is to get text from image
     func extractText(from image: UIImage, completion: @escaping (String?, Error?) -> Void) {
         guard let cgImage = image.cgImage else {
             completion(nil, OCRError.invalidImage)

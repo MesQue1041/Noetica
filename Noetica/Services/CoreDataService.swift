@@ -15,7 +15,7 @@ class CoreDataService: ObservableObject {
     
     lazy var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "Noetica")
-        container.loadPersistentStores(completionHandler: { _, error in
+        container.loadPersistentStores(completionHandler: { _, error in    // This is to check if core date is working properly
             if let error = error as NSError? {
                 print("Core Data error: \(error)")
                 fatalError("Unresolved error \(error), \(error.userInfo)")
@@ -49,7 +49,7 @@ class CoreDataService: ObservableObject {
         }
     }
     
-    
+    // calendar
     func createCalendarEvent(
         title: String,
         description: String,
@@ -97,7 +97,7 @@ class CoreDataService: ObservableObject {
         }
     }
 
-    
+    // quick pomodoro
     func createQuickPomodoroEvent(
         subject: String? = nil,
         deckName: String? = nil,
@@ -166,7 +166,7 @@ class CoreDataService: ObservableObject {
         print("Event completed with notifications handled")
     }
     
-    
+    // custom pomodoro session
     func createPomodoroSession(
         subjectOrDeck: String,
         sessionType: String,
@@ -237,7 +237,7 @@ class CoreDataService: ObservableObject {
         }
     }
     
-    
+    // Create notes
     func createNote(title: String, body: String, subject: String? = nil, tags: String? = nil) -> Note {
         let note = Note(context: context)
         note.id = UUID()
@@ -269,6 +269,7 @@ class CoreDataService: ObservableObject {
         }
     }
     
+    // create Decks
     func createDeck(name: String, subject: String) -> Deck {
         let deck = Deck(context: context)
         deck.id = UUID()
@@ -292,6 +293,7 @@ class CoreDataService: ObservableObject {
         }
     }
     
+    // create flashcards
     func createFlashcard(frontText: String, backText: String, deck: Deck) -> Flashcard {
         let flashcard = Flashcard(context: context)
         flashcard.id = UUID()

@@ -32,9 +32,11 @@ struct MainTabView: View {
                        .environmentObject(statsService)
                        .environmentObject(authService)
                    
-                   Color.clear
+                   PomodoroTimerView(preloadedEvent: nil)
                        .tabItem { EmptyView() }
                        .tag(2)
+                       .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(authService)
                    
                    CalendarView()
                        .tabItem { EmptyView() }
@@ -50,6 +52,7 @@ struct MainTabView: View {
                        .environmentObject(statsService)
                        .environmentObject(authService)
                }
+
                .tabViewStyle(.page(indexDisplayMode: .never))
                
                VStack(spacing: 0) {
@@ -66,25 +69,22 @@ struct MainTabView: View {
                    .environmentObject(statsService)
                    .environmentObject(authService)
            }
+           .onChange(of: navigationService.shouldNavigateToTimer) { shouldNavigate in
+               if shouldNavigate {
+                   showPomodoroView = true
+                   navigationService.clearNavigation()
+               }
+           }
            .fullScreenCover(isPresented: $showPomodoroView) {
-               PomodoroTimerView()
-                   .onAppear {
-                       if let event = navigationService.pendingTimerEvent {
-                           PomodoroTimerService.shared.currentEvent = event
-                           print("Loaded pending event: \(event.title)")
-                       }
-                   }
-
+               PomodoroTimerView(preloadedEvent: navigationService.pendingTimerEvent)
+                   .environment(\.managedObjectContext, CoreDataService.shared.context)
+                   .environmentObject(authService)
                    .onDisappear {
                        showPomodoroView = false
                        navigationService.clearNavigation()
                    }
            }
-           .onChange(of: navigationService.shouldNavigateToTimer) { shouldNavigate in
-               if shouldNavigate {
-                   showPomodoroView = true
-               }
-           }
+
        }
     
     private var timerStatusBar: some View {
@@ -129,6 +129,7 @@ struct MainTabView: View {
                     ProgressView(value: timerService.progress)
                         .progressViewStyle(LinearProgressViewStyle(tint: .blue))
                         .frame(width: 60)
+
                 }
                 
                 HStack(spacing: 8) {
@@ -177,10 +178,7 @@ struct MainTabView: View {
                     )
             )
             .onTapGesture {
-                // Navigate back to full PomodoroTimerView
-                if let event = timerService.currentEvent {
-                    NavigationService.shared.navigateToTimer(with: event)
-                }
+                showPomodoroView = true 
             }
         }
         .padding(.horizontal, 20)
@@ -213,9 +211,17 @@ struct CustomTabBar: View {
             FloatingPlusButton {
                 showCreatePage = true
             }
-            
+
             Spacer()
-            
+
+            TabBarButton(
+                icon: "timer",
+                isSelected: selectedTab == 2,
+                action: { selectedTab = 2 }
+            )
+
+            Spacer()
+
             TabBarButton(
                 icon: "calendar",
                 isSelected: selectedTab == 3,

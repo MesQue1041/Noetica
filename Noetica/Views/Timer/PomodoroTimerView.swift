@@ -10,6 +10,8 @@ import AVFoundation
 import UserNotifications
 
 struct PomodoroTimerView: View {
+    let preloadedEvent: CalendarEvent?
+    
     @State private var timeRemaining = 1500
     @State private var isActive = false
     @State private var showingBreak = false
@@ -32,6 +34,11 @@ struct PomodoroTimerView: View {
     
     @EnvironmentObject private var authService: AuthService
     @StateObject private var coreDataService = CoreDataService.shared
+    @StateObject private var timerService = PomodoroTimerService.shared
+    
+    init(preloadedEvent: CalendarEvent? = nil) {
+        self.preloadedEvent = preloadedEvent
+    }
     
     private let colors = [
         PomodoroSessionType.work: Color.red,
@@ -70,12 +77,13 @@ struct PomodoroTimerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadAvailableData()
-            setupDefaultSession()
-            syncWithTimerService()
-               
-               if let pendingEvent = NavigationService.shared.pendingTimerEvent {
-                   loadEventFromCalendar(pendingEvent)
-               }
+            
+            if let event = preloadedEvent {
+                loadEventFromCalendar(event)
+            } else {
+                setupDefaultSession()
+                syncWithBackgroundTimer()
+            }
         }
         .onDisappear {
             if isActive {
@@ -381,10 +389,21 @@ struct PomodoroTimerView: View {
     }
     
     private var progress: Double {
-        let totalTime = Double(sessionType.duration * 60)
-        return (totalTime - Double(timeRemaining)) / totalTime
+        guard linkedCalendarEvent != nil else {
+            let totalTime = Double(sessionType.duration * 60)
+            guard totalTime > 0 else { return 0.0 }
+            let currentProgress = (totalTime - Double(timeRemaining)) / totalTime
+            return max(0.0, min(1.0, currentProgress))
+        }
+        
+        let eventDuration = linkedCalendarEvent!.endTime.timeIntervalSince(linkedCalendarEvent!.startTime)
+        guard eventDuration > 0 else { return 0.0 }
+        
+        let currentProgress = (eventDuration - Double(timeRemaining)) / eventDuration
+        return max(0.0, min(1.0, currentProgress))
     }
-    
+
+
     private var timeString: String {
         let minutes = timeRemaining / 60
         let seconds = timeRemaining % 60
@@ -392,6 +411,10 @@ struct PomodoroTimerView: View {
     }
     
     private var canStartSession: Bool {
+        if linkedCalendarEvent != nil {
+            return true
+        }
+        
         if quickSessionType == .studySession {
             return !selectedSubject.isEmpty
         } else {
@@ -442,14 +465,50 @@ struct PomodoroTimerView: View {
         timeRemaining = minutes * 60
     }
     
+    private func loadEventFromCalendar(_ event: CalendarEvent) {
+        linkedCalendarEvent = event
+        
+        let eventDuration = Int(event.endTime.timeIntervalSince(event.startTime))
+        timeRemaining = eventDuration
+        
+        quickSessionType = event.type
+        
+        if event.type == .studySession, let subject = event.subject {
+            selectedSubject = subject
+        } else if event.type == .flashcards, let deckName = event.deckName {
+            selectedDeck = availableDecks.first { $0.name == deckName }
+        }
+        
+        if let sessionId = event.linkedSessionId {
+            let sessions = coreDataService.fetchPomodoroSessions()
+            currentPomodoroSession = sessions.first { $0.id == sessionId }
+        }
+        
+    }
+    
+    private func syncWithBackgroundTimer() {
+        if timerService.isRunning, let event = timerService.currentEvent {
+            linkedCalendarEvent = event
+            timeRemaining = timerService.timeRemaining
+            isActive = true
+            currentPomodoroSession = timerService.currentSession
+        }
+    }
     
     private func startTimer() {
-        if currentPomodoroSession == nil {
+        if currentPomodoroSession == nil && linkedCalendarEvent == nil {
             createLinkedCalendarEventAndSession()
+        }
+        
+        if let event = linkedCalendarEvent {
+            timerService.startSession(event: event)
+            timerService.timeRemaining = timeRemaining
+            timerService.currentSession = currentPomodoroSession
         }
         
         isActive = true
         startTimerLoop()
+        
     }
     
     private func createLinkedCalendarEventAndSession() {
@@ -479,13 +538,15 @@ struct PomodoroTimerView: View {
         linkedCalendarEvent = calendarEvent
         currentPomodoroSession = pomodoroSession
         
-        print("Created linked calendar event and Pomodoro session")
     }
     
     private func startTimerLoop() {
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
             if self.isActive && self.timeRemaining > 0 {
                 self.timeRemaining -= 1
+                
+                self.timerService.timeRemaining = self.timeRemaining
+                self.timerService.isRunning = true
             } else if self.timeRemaining <= 0 {
                 timer.invalidate()
                 self.sessionComplete()
@@ -497,16 +558,21 @@ struct PomodoroTimerView: View {
     
     private func pauseTimer() {
         isActive = false
+        timerService.pauseSession()
     }
     
     private func stopTimer() {
         isActive = false
-        timeRemaining = sessionType.duration * 60
+        timerService.stopSession()
         
-        if let session = currentPomodoroSession {
-            currentPomodoroSession = nil
-            linkedCalendarEvent = nil
+        if linkedCalendarEvent == nil {
+            timeRemaining = sessionType.duration * 60
+        } else {
+            let eventDuration = Int(linkedCalendarEvent!.endTime.timeIntervalSince(linkedCalendarEvent!.startTime))
+            timeRemaining = eventDuration
         }
+        
+        currentPomodoroSession = nil
     }
     
     private func sessionComplete() {
@@ -521,7 +587,8 @@ struct PomodoroTimerView: View {
         if let event = linkedCalendarEvent {
             coreDataService.markEventCompleted(event)
         }
-   
+        
+        timerService.completeSession()
     }
     
     private func completeCurrentSession() {
@@ -569,37 +636,6 @@ struct PomodoroTimerView: View {
         
         UNUserNotificationCenter.current().add(request)
     }
-    
-    func loadEventFromCalendar(_ event: CalendarEvent) {
-        linkedCalendarEvent = event
-        
-        quickSessionType = event.type
-        timeRemaining = Int(event.endTime.timeIntervalSince(event.startTime))
-        
-        if event.type == .studySession, let subject = event.subject {
-            selectedSubject = subject
-        } else if event.type == .flashcards, let deckName = event.deckName {
-            selectedDeck = availableDecks.first { $0.name == deckName }
-        }
-        
-        if let sessionId = event.linkedSessionId {
-            let sessions = coreDataService.fetchPomodoroSessions()
-            currentPomodoroSession = sessions.first { $0.id == sessionId }
-        }
-        
-        print("Loaded event in PomodoroTimerView: \(event.title)")
-    }
-    
-    func syncWithTimerService() {
-        let timerService = PomodoroTimerService.shared
-        if timerService.isRunning, let event = timerService.currentEvent {
-            loadEventFromCalendar(event)
-            isActive = timerService.isRunning
-            timeRemaining = timerService.timeRemaining
-        }
-    }
-
-    
 }
 
 
@@ -667,6 +703,6 @@ struct QuickActionButton: View {
 }
 
 #Preview {
-    PomodoroTimerView()
+    PomodoroTimerView(preloadedEvent: nil)
         .environmentObject(AuthService())
 }

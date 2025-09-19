@@ -19,9 +19,10 @@ class NavigationService: ObservableObject {
     
     func navigateToTimer(with event: CalendarEvent) {
         pendingTimerEvent = event
-        selectedTab = 3 
+        
         shouldNavigateToTimer = true
     }
+
     
     func clearNavigation() {
         shouldNavigateToTimer = false

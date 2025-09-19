@@ -154,8 +154,13 @@ class PomodoroTimerService: ObservableObject {
     }
     
     var progress: Double {
-        guard let session = currentSession else { return 0 }
-        let totalTime = Double(session.duration * 60)
-        return (totalTime - Double(timeRemaining)) / totalTime
+        guard let event = currentEvent else { return 0.0 }
+        
+        let totalDuration = event.endTime.timeIntervalSince(event.startTime)
+        guard totalDuration > 0, timeRemaining >= 0 else { return 0.0 }
+        
+        let currentProgress = (totalDuration - Double(timeRemaining)) / totalDuration
+        return max(0.0, min(1.0, currentProgress))
     }
+
 }

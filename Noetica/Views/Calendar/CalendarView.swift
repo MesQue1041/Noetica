@@ -193,17 +193,25 @@ struct CalendarView: View {
     }
         
     private func loadActivityData() {
-        let today = Date()
-        for i in 0..<42 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
-                activityData[calendar.startOfDay(for: date)] = Int.random(in: 0...5)
+        let sessions = CoreDataService.shared.fetchCompletedSessions(
+            from: Calendar.current.date(byAdding: .day, value: -42, to: Date()) ?? Date(),
+            to: Date()
+        )
+        
+        activityData.removeAll()
+        for session in sessions {
+            if let startDate = session.startTime {
+                let key = calendar.startOfDay(for: startDate)
+                activityData[key, default: 0] += 1
             }
         }
     }
+
     
     private func loadCalendarEvents() {
         events = CoreDataService.shared.fetchCalendarEvents()
     }
+
     
     private func eventsForDate(_ date: Date) -> [CalendarEvent] {
         return events.filter { event in
@@ -211,6 +219,7 @@ struct CalendarView: View {
         }
         .sorted { $0.startTime < $1.startTime }
     }
+
     
     private func createQuickEvent(type: EventType) {
         let now = Date()
@@ -523,6 +532,8 @@ struct EmptyEventsView: View {
 struct EventCard: View {
     let event: CalendarEvent
     @StateObject private var timerService = PomodoroTimerService.shared
+    @State private var currentTime = Date()
+    @State private var refreshTimer: Timer?
     
     var body: some View {
         HStack(spacing: 16) {
@@ -560,17 +571,17 @@ struct EventCard: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.red)
                         }
-                    }  else if canStartNow {
+                    } else if canStartNow {
                         Button(action: {
-                            NavigationService.shared.navigateToTimer(with: event)  // ✅ NEW CODE
+                            NavigationService.shared.navigateToTimer(with: event)
                         }) {
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 24))
                                 .foregroundColor(.green)
                         }
+                        .scaleEffect(1.1)
+                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: UUID())
                     }
-
-
                 }
                 
                 Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
@@ -606,26 +617,42 @@ struct EventCard: View {
                 .fill(Color(.secondarySystemGroupedBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(isSessionActive ? Color.red.opacity(0.5) : Color.clear, lineWidth: 2)
+                        .stroke(canStartNow ? Color.green.opacity(0.5) : Color.clear, lineWidth: 2)
                 )
         )
+        .onAppear {
+            startUIRefreshTimer()
+        }
+        .onDisappear {
+            refreshTimer?.invalidate()
+        }
     }
     
     private var canStartNow: Bool {
-        let now = Date()
-        let fiveMinutesBefore = event.startTime.addingTimeInterval(-300)
-        let fifteenMinutesAfter = event.endTime.addingTimeInterval(900)   
-        let playWindow = fiveMinutesBefore...fifteenMinutesAfter
-        
-        return !event.isCompleted &&
-               playWindow.contains(now) &&
-               !isSessionActive
+        let now = currentTime
+        let isInWindow = now >= event.startTime && now <= event.endTime
+        return !event.isCompleted && isInWindow && !isSessionActive
     }
-
+    
     private var isSessionActive: Bool {
         return timerService.currentEvent?.id == event.id && timerService.isRunning
     }
+    
+    private func startUIRefreshTimer() {
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            currentTime = Date()
+        }
+    }
 }
+
+extension View {
+    func pulse() -> some View {
+        self.scaleEffect(1.1)
+            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: UUID())
+    }
+}
+
+
 
 
 struct QuickEventButton: View {

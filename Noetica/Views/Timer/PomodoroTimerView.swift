@@ -160,16 +160,26 @@ struct PomodoroTimerView: View {
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                         .monospacedDigit()
+                        .accessibilityLabel("Timer")
+                        .accessibilityValue("\(timeString)")
+                        .accessibilityHint("Remaining time for study session")
+                        .accessibilityAddTraits([.updatesFrequently])
                     
                     Text(sessionType.rawValue)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(sessionType.color)
                         .textCase(.uppercase)
                         .tracking(1)
+                        .accessibilityLabel("Session type: \(sessionType.rawValue)")
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Study timer")
+            .accessibilityValue("\(timeString) remaining for \(sessionType.rawValue) session")
+            .accessibilityHint("Shows remaining time and session progress")
         }
     }
+
     
     
     private var sessionSetupSection: some View {
@@ -288,6 +298,9 @@ struct PomodoroTimerView: View {
                         )
                         .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
+                .accessibilityLabel("Pause timer")
+                .accessibilityHint("Pause the current study session")
+                .frame(minWidth: 44, minHeight: 44)
                 
                 Button(action: stopTimer) {
                     Image(systemName: "stop.fill")
@@ -300,6 +313,9 @@ struct PomodoroTimerView: View {
                         )
                         .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
+                .accessibilityLabel("Stop timer")
+                .accessibilityHint("Stop and reset the current study session")
+                .frame(minWidth: 44, minHeight: 44)
                 
             } else {
                 Button(action: startTimer) {
@@ -324,15 +340,21 @@ struct PomodoroTimerView: View {
                     .shadow(color: sessionType.color.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
                 .disabled(!canStartSession)
+                .accessibilityLabel(currentPomodoroSession != nil ? "Resume session" : "Start study session")
+                .accessibilityHint(canStartSession ? "Begin the configured study session" : "Configure session settings first")
+                .frame(minWidth: 44, minHeight: 56)
             }
         }
     }
+
     
     private var sessionProgressSection: some View {
         VStack(spacing: 16) {
             Text("Session \(currentSession + 1) of \(totalSessions)")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.secondary)
+                .accessibilityLabel("Session progress")
+                .accessibilityValue("Currently on session \(currentSession + 1) of \(totalSessions)")
             
             HStack(spacing: 8) {
                 ForEach(0..<totalSessions, id: \.self) { index in
@@ -341,8 +363,12 @@ struct PomodoroTimerView: View {
                         .frame(width: 12, height: 12)
                         .scaleEffect(index == currentSession ? 1.2 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentSession)
+                        .accessibilityHidden(true)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Session progress indicator")
+            .accessibilityValue("\(currentSession + 1) out of \(totalSessions) sessions completed")
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 24)
@@ -351,6 +377,7 @@ struct PomodoroTimerView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
     }
+
     
     private var quickActionsSection: some View {
         VStack(spacing: 16) {
@@ -699,8 +726,13 @@ struct QuickActionButton: View {
                     .stroke(color.opacity(0.3), lineWidth: 1)
             )
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title) \(subtitle)")
+        .accessibilityHint("Start a \(title) study session")
+        .frame(minWidth: 44, minHeight: 44)
     }
 }
+
 
 #Preview {
     PomodoroTimerView(preloadedEvent: nil)

@@ -8,5 +8,9 @@
 	<string>This app needs microphone access to convert speech to text for notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app needs speech recognition to transcribe your voice into text for notes.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Noetica uses Face ID to provide secure and convenient access to your study data and learning progress.</string>
+	<key>CFBundleIdentifier</key>
+	<string></string>
 </dict>
 </plist>

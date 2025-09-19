@@ -239,6 +239,7 @@ struct DashboardStatCard: View {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(color)
+                .accessibilityHidden(true)
             
             Text(value)
                 .font(.system(size: 18, weight: .bold))
@@ -253,8 +254,11 @@ struct DashboardStatCard: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(value) \(title)")
+        .accessibilityValue("Current count: \(value)")
+        .accessibilityAddTraits([.updatesFrequently])
     }
 }
 
@@ -349,6 +353,7 @@ struct SessionCard: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(session.type.color)
             }
+            .accessibilityHidden(true)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.title)
@@ -384,12 +389,23 @@ struct SessionCard: View {
                     .background(session.type.color)
                     .cornerRadius(16)
             }
+            .accessibilityLabel("Start \(session.title)")
+            .accessibilityHint("Begin this study session")
         }
         .padding(16)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(session.title) at \(session.time)")
+        .accessibilityValue("Subject: \(session.subject)")
+        .accessibilityAction(named: "Start session") {
+            if session.type == .pomodoro {
+                showingPomodoroTimer = true
+            }
+        }
     }
 }
+
 
 struct EmptySessionsCard: View {
     var body: some View {
@@ -492,7 +508,6 @@ struct QuickActionCard: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(color)
                     }
-                    
                     Spacer()
                 }
                 
@@ -508,12 +523,17 @@ struct QuickActionCard: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title)")
+        .accessibilityHint("\(subtitle)")
+        .frame(minWidth: 44, minHeight: 44)
     }
 }
+
 
 struct StudyRecommendationsSection: View {
     let recommendations: [StudyRecommendation]

@@ -192,65 +192,50 @@ struct CustomTabBar: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            TabBarButton(
-                icon: "house.fill",
-                isSelected: selectedTab == 0,
-                action: { selectedTab = 0 }
-            )
+            TabBarButton(icon: "house.fill", isSelected: selectedTab == 0) { selectedTab = 0 }
+                .accessibilityLabel("Home")
+                .accessibilityHint("Navigate to home dashboard")
+                .accessibilityAddTraits(selectedTab == 0 ? [.isSelected] : [])
             
             Spacer()
             
-            TabBarButton(
-                icon: "folder.fill",
-                isSelected: selectedTab == 1,
-                action: { selectedTab = 1 }
-            )
+            TabBarButton(icon: "folder.fill", isSelected: selectedTab == 1) { selectedTab = 1 }
+                .accessibilityLabel("Explorer")
+                .accessibilityHint("Browse notes and flashcard decks")
+                .accessibilityAddTraits(selectedTab == 1 ? [.isSelected] : [])
             
             Spacer()
             
-            FloatingPlusButton {
-                showCreatePage = true
-            }
-
-            Spacer()
-
-            TabBarButton(
-                icon: "timer",
-                isSelected: selectedTab == 2,
-                action: { selectedTab = 2 }
-            )
-
-            Spacer()
-
-            TabBarButton(
-                icon: "calendar",
-                isSelected: selectedTab == 3,
-                action: { selectedTab = 3 }
-            )
+            FloatingPlusButton { showCreatePage = true }
+                .accessibilityLabel("Create new content")
+                .accessibilityHint("Add new note or flashcard")
+                .accessibilityAddTraits([.isButton])
             
             Spacer()
             
-            TabBarButton(
-                icon: "chart.bar.fill",
-                isSelected: selectedTab == 4,
-                action: { selectedTab = 4 }
-            )
+            TabBarButton(icon: "calendar", isSelected: selectedTab == 2) { selectedTab = 2 }
+                .accessibilityLabel("Calendar")
+                .accessibilityHint("View and schedule study sessions")
+                .accessibilityAddTraits(selectedTab == 2 ? [.isSelected] : [])
+            
+            Spacer()
+            
+            TabBarButton(icon: "chart.bar.fill", isSelected: selectedTab == 4) { selectedTab = 4 }
+                .accessibilityLabel("Statistics")
+                .accessibilityHint("View learning progress and analytics")
+                .accessibilityAddTraits(selectedTab == 4 ? [.isSelected] : [])
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 28)
                 .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
         )
-        .padding(.horizontal, 20)
-        .padding(.bottom, 34)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Navigation bar")
     }
 }
+
 
 struct TabBarButton: View {
     let icon: String

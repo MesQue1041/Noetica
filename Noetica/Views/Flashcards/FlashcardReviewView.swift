@@ -11,35 +11,32 @@ import SwiftUI
 struct FlashcardReviewView: View {
     @State private var currentIndex = 0
     @State private var showAnswer = false
-    @EnvironmentObject private var authService: AuthService
-    @EnvironmentObject private var statsService: StatsService
-    
     let flashcards: [Flashcard]
-
+    
     var body: some View {
         VStack(spacing: 24) {
             if flashcards.isEmpty {
                 Text("No flashcards to review")
                     .font(.title)
                     .foregroundColor(.gray)
+                    .accessibilityLabel("No flashcards available")
+                    .accessibilityHint("Add flashcards to start reviewing")
             } else {
                 Text("Flashcard \(currentIndex + 1) of \(flashcards.count)")
                     .font(.headline)
                     .foregroundColor(Color.purple)
                     .padding(.top)
-
+                    .accessibilityLabel("Progress: card \(currentIndex + 1) of \(flashcards.count)")
+                
                 Spacer()
-
+                
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.white)
                         .shadow(radius: 8)
                         .frame(height: 320)
-                        .rotation3DEffect(
-                            .degrees(showAnswer ? 180 : 0),
-                            axis: (x: 0, y: 1, z: 0)
-                        )
-
+                        .rotation3DEffect(.degrees(showAnswer ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+                    
                     VStack {
                         Text(showAnswer ? (flashcards[currentIndex].backText ?? "") : (flashcards[currentIndex].frontText ?? ""))
                             .font(.title2)
@@ -48,10 +45,7 @@ struct FlashcardReviewView: View {
                             .padding()
                     }
                     .frame(height: 320)
-                    .rotation3DEffect(
-                        .degrees(showAnswer ? 180 : 0),
-                        axis: (x: 0, y: 1, z: 0)
-                    )
+                    .rotation3DEffect(.degrees(showAnswer ? 180 : 0), axis: (x: 0, y: 1, z: 0))
                 }
                 .padding()
                 .onTapGesture {
@@ -59,36 +53,48 @@ struct FlashcardReviewView: View {
                         showAnswer.toggle()
                     }
                 }
-
-                Spacer()
-
-                HStack(spacing: 40) {
-                    Button("Easy") {
-                        markDifficulty(easy: true)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(showAnswer ? "Answer: \(flashcards[currentIndex].backText ?? "")" : "Question: \(flashcards[currentIndex].frontText ?? "")")
+                .accessibilityHint(showAnswer ? "Tap to show question again" : "Tap to reveal answer")
+                .accessibilityAction(named: showAnswer ? "Show question" : "Show answer") {
+                    withAnimation(.easeInOut) {
+                        showAnswer.toggle()
                     }
-                    .buttonStyle(ReviewButtonStyle(color: .green))
-
-                    Button("Hard") {
-                        markDifficulty(easy: false)
-                    }
-                    .buttonStyle(ReviewButtonStyle(color: .red))
                 }
-                .padding(.bottom)
+                
+                Spacer()
+                
+                if showAnswer {
+                    HStack(spacing: 40) {
+                        Button("Easy") {
+                            markDifficulty(easy: true)
+                        }
+                        .buttonStyle(ReviewButtonStyle(color: .green))
+                        .accessibilityLabel("Mark as easy")
+                        .accessibilityHint("This flashcard was easy to remember")
+                        
+                        Button("Hard") {
+                            markDifficulty(easy: false)
+                        }
+                        .buttonStyle(ReviewButtonStyle(color: .red))
+                        .accessibilityLabel("Mark as hard")
+                        .accessibilityHint("This flashcard was difficult to remember")
+                    }
+                    .padding(.bottom)
+                    .padding()
+                }
             }
         }
-        .padding()
     }
-
+    
     private func markDifficulty(easy: Bool) {
-        // TODO: Implement spaced repetition update here
         if currentIndex < flashcards.count - 1 {
             currentIndex += 1
             showAnswer = false
-        } else {
         }
-        
     }
 }
+
 
 struct ReviewButtonStyle: ButtonStyle {
     var color: Color

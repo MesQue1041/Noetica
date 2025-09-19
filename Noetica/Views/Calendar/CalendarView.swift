@@ -350,15 +350,9 @@ struct ModernDayCell: View {
                     .font(.system(size: 16, weight: isSelected ? .bold : .medium))
                     .foregroundColor(textColor)
                 
-                if activityCount > 0 {
-                    Circle()
-                        .fill(activityColor)
-                        .frame(width: 6, height: 6)
-                } else {
-                    Circle()
-                        .fill(Color.clear)
-                        .frame(width: 6, height: 6)
-                }
+                Circle()
+                    .fill(activityCount > 0 ? activityColor : Color.clear)
+                    .frame(width: 6, height: 6)
             }
             .frame(width: 44, height: 50)
             .background(
@@ -372,8 +366,14 @@ struct ModernDayCell: View {
             .scaleEffect(isSelected ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Day \(Calendar.current.component(.day, from: date))")
+        .accessibilityValue(activityCount > 0 ? "\(activityCount) study sessions" : "No sessions")
+        .accessibilityHint(isSelected ? "Currently selected" : "Tap to select this date")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : [.isButton])
     }
+
     
     private var backgroundColor: Color {
         if isSelected {
@@ -684,6 +684,10 @@ struct QuickEventButton: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title)")
+        .accessibilityHint("Create a quick \(title.lowercased()) session")
+        .frame(minWidth: 44, minHeight: 44)
     }
 }
 

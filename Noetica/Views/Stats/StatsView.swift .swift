@@ -220,6 +220,10 @@ struct StatCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): \(value)")
+        .accessibilityValue("Trend: \(trend == .up ? "increasing" : trend == .down ? "decreasing" : "stable")")
+        .accessibilityHint("Performance metric for \(title)")
     }
 }
 
@@ -388,6 +392,10 @@ struct SubjectRow: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name) subject")
+        .accessibilityValue("\(noteCount) notes, \(Int(percentage * 100))% of total")
+        .accessibilityHint("Subject breakdown information")
     }
 }
 

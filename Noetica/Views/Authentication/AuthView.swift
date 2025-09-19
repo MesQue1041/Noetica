@@ -32,7 +32,7 @@ struct AuthView: View {
                             .fontWeight(.heavy)
                             .foregroundColor(.blue)
                         
-                        Text(isLogin ? "Sign in to continue your learning journey" : "Start your learning adventure")
+                        Text(isLogin ? "Sign in to continue learning" : "Start your learning adventure")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)

@@ -173,3 +173,33 @@ class AuthService: ObservableObject {
         return user?.email ?? ""
     }
 }
+
+// MARK: - Profile Updates
+extension AuthService {
+    func updateDisplayName(to newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(domain: "AuthService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No authenticated user found."])) )
+            return
+        }
+
+        let changeRequest = user.createProfileChangeRequest()
+        changeRequest.displayName = newName
+        changeRequest.commitChanges { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async { completion(.failure(error)) }
+                return
+            }
+            user.reload { reloadError in
+                DispatchQueue.main.async {
+                    if let reloadError = reloadError {
+                        completion(.failure(reloadError))
+                    } else {
+                        // Update published state
+                        self?.user = Auth.auth().currentUser
+                        completion(.success(()))
+                    }
+                }
+            }
+        }
+    }
+}

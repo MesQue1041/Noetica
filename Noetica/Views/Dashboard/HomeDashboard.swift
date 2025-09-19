@@ -17,6 +17,7 @@ struct HomeDashboardView: View {
     @State private var currentTime = Date()
     @State private var showingPomodoroTimer = false
     @State private var showingARFlashcards = false
+    @State private var showingSettings = false
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Note.dateModified, ascending: false)],
@@ -39,7 +40,7 @@ struct HomeDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                HeaderSection()
+                HeaderSection(showingSettings: $showingSettings)
                 
                 StatsOverviewSection(
                     totalNotes: allNotes.count,
@@ -64,6 +65,12 @@ struct HomeDashboardView: View {
         }
         .sheet(isPresented: $showingARFlashcards) {
             ARFlashcardReviewView(flashcards: Array(allFlashcards), isPresented: $showingARFlashcards)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(authService)
+                .environment(\.managedObjectContext, viewContext)
+                .environmentObject(statsService)
         }
         .onAppear {
             startTimeUpdater()
@@ -263,6 +270,9 @@ struct DashboardStatCard: View {
 }
 
 struct HeaderSection: View {
+    @Binding var showingSettings: Bool
+    @EnvironmentObject private var authService: AuthService
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -271,23 +281,25 @@ struct HeaderSection: View {
                         .font(.title2)
                         .foregroundColor(.secondary)
                     
-                    Text("Abdul!")
+                    Text("\(authService.userDisplayName)!")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.primary)
                 }
                 
                 Spacer()
                 
-                Button(action: {}) {
+                Button(action: { showingSettings = true }) {
                     Circle()
                         .fill(LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 44, height: 44)
                         .overlay(
-                            Text("A")
+                            Text(authService.userDisplayName.prefix(1).uppercased())
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                         )
                 }
+                .accessibilityLabel("Profile settings")
+                .accessibilityHint("Tap to open settings and profile")
             }
             
             Text("Ready to boost your learning?")

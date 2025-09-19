@@ -12,29 +12,16 @@ struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var statsService: StatsService
 
-    @AppStorage("isDarkMode") private var isDarkMode = false
-    @AppStorage("enableNotifications") private var enableNotifications = true
-    @AppStorage("autoBackup") private var autoBackup = true
-    
     @State private var showDeleteAccountAlert = false
     @State private var showLogoutAlert = false
     @State private var showAboutSheet = false
+    @State private var showEditProfile = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    UserProfileSection()
-                    
-                    PreferencesSection(
-                        isDarkMode: $isDarkMode,
-                        enableNotifications: $enableNotifications,
-                        autoBackup: $autoBackup
-                    )
-                    
-                    StudySettingsSection()
-                    
-                    DataPrivacySection()
+                    UserProfileSection(showEditProfile: $showEditProfile)
                     
                     AboutSupportSection(showAboutSheet: $showAboutSheet)
                     
@@ -70,68 +57,193 @@ struct SettingsView: View {
         .sheet(isPresented: $showAboutSheet) {
             AboutSheet()
         }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileSheet(currentName: authService.userDisplayName)
+        }
+    }
+}
+
+struct EditProfileSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authService: AuthService
+    @State private var nameText: String
+    @State private var isSaving = false
+    @State private var errorText: String?
+
+    init(currentName: String) {
+        _nameText = State(initialValue: currentName)
+    }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Display Name")) {
+                    TextField("Your name", text: $nameText)
+                        .textInputAutocapitalization(.words)
+                        .disableAutocorrection(true)
+                }
+                if let errorText {
+                    Section {
+                        Text(errorText)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(isSaving ? "Saving..." : "Save") {
+                        save()
+                    }
+                    .disabled(isSaving || nameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let trimmed = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        isSaving = true
+        errorText = nil
+        authService.updateDisplayName(to: trimmed) { result in
+            isSaving = false
+            switch result {
+            case .success:
+                dismiss()
+            case .failure(let error):
+                errorText = error.localizedDescription
+            }
+        }
     }
 }
 
 struct UserProfileSection: View {
     @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var statsService: StatsService
+    @Binding var showEditProfile: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.blue, .purple]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+        VStack(spacing: 24) {
+            HStack {
+                Spacer()
+                
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.blue, .purple]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(width: 64, height: 64)
+                            .frame(width: 100, height: 100)
+                        
+                        Text(authService.userDisplayName.prefix(1).uppercased())
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                    }
                     
-                    Text(authService.userDisplayName.prefix(1).uppercased())
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                    VStack(spacing: 6) {
+                        Text(authService.userDisplayName)
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        Text(authService.userEmail)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(authService.userDisplayName)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.primary)
-                    
-                    Text(authService.userEmail)
-                        .font(.system(size: 14, weight: .medium))
+                Spacer()
+            }
+            
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
-                    
                     Text("Member since \(memberSinceDate)")
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
                 Button(action: {
+                    showEditProfile = true
                 }) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.blue)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(.ultraThinMaterial))
+                    HStack(spacing: 6) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Edit")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
+                    )
+                }
+            }
+            
+            HStack(spacing: 24) {
+                VStack(spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.orange)
+                        Text("\(statsService.studyStats.currentStreak)")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.primary)
+                    }
+                    Text("Day Streak")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 1, height: 40)
+                
+                VStack(spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.blue)
+                        Text("\(String(format: "%.1f", statsService.studyStats.totalStudyHours))")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.primary)
+                    }
+                    Text("Hours Studied")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
                 }
             }
         }
-        .padding(20)
+        .padding(28)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20)
                 .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
     }
     
     private var memberSinceDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+        
+        if let creationDate = authService.user?.metadata.creationDate {
+            return formatter.string(from: creationDate)
+        }
+        
         return formatter.string(from: Date())
     }
 }
@@ -272,7 +384,7 @@ struct AccountActionsSection: View {
     var body: some View {
         VStack(spacing: 12) {
             Button(action: { showLogoutAlert = true }) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
                         .font(.system(size: 18, weight: .semibold))
                     Text("Sign Out")
@@ -281,12 +393,19 @@ struct AccountActionsSection: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background(Color.blue)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
                 .cornerRadius(12)
+                .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
             }
             
             Button(action: { showDeleteAccountAlert = true }) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "trash.fill")
                         .font(.system(size: 18, weight: .semibold))
                     Text("Delete Account")
@@ -295,8 +414,15 @@ struct AccountActionsSection: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background(Color.red)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.red, Color.red.opacity(0.8)]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
                 .cornerRadius(12)
+                .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
             }
         }
     }
@@ -471,5 +597,7 @@ struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView()
             .environmentObject(AuthService())
+            .environmentObject(StatsService())
+            .environment(\.managedObjectContext, CoreDataService.shared.context)
     }
 }

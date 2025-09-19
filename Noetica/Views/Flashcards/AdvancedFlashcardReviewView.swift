@@ -61,7 +61,7 @@ struct AdvancedFlashcardReviewView: View {
             }
             .navigationBarHidden(true)
         }
-        .alert("Session Complete! 🎉", isPresented: $showCompletionAlert) {
+        .alert("Session Complete!", isPresented: $showCompletionAlert) {
             Button("Continue Studying") {
                 startNewSession()
             }
@@ -94,28 +94,28 @@ struct AdvancedFlashcardReviewView: View {
     }
     
     private func reviewCard(quality: ReviewQuality) {
-        print("🔍 Starting review card with quality: \(quality.title)")
+        print("Starting review card with quality: \(quality.title)")
         
         guard let card = currentCard else {
-            print("❌ No current card found")
+            print("No current card found")
             return
         }
         
-        print("🔍 Processing review for card: \(card.frontText ?? "Unknown")")
+        print("Processing review for card: \(card.frontText ?? "Unknown")")
         
         spacedRepetition.reviewFlashcard(card, quality: quality)
         cardsReviewedInSession += 1
         
-        print("🔍 Cards reviewed in session: \(cardsReviewedInSession)")
+        print("Cards reviewed in session: \(cardsReviewedInSession)")
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 if self.currentCardIndex < self.reviewCards.count - 1 {
-                    print("🔍 Moving to next card")
+                    print("Moving to next card")
                     self.currentCardIndex += 1
                     self.showAnswer = false
                 } else {
-                    print("🔍 Session complete - showing alert")
+                    print("Session complete - showing alert")
                     self.showCompletionAlert = true
                 }
             }
@@ -196,7 +196,6 @@ struct ReviewHeaderView: View {
 struct FlashcardDisplayView: View {
     let flashcard: Flashcard
     @Binding var showAnswer: Bool
-    @State private var isFlipped = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -259,15 +258,10 @@ struct FlashcardDisplayView: View {
                     .padding(32)
                 }
                 .frame(maxHeight: geometry.size.height * 0.6)
-                .rotation3DEffect(
-                    .degrees(isFlipped ? 180 : 0),
-                    axis: (x: 0, y: 1, z: 0)
-                )
                 .onTapGesture {
                     if !showAnswer {
                         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                             showAnswer = true
-                            isFlipped = true
                         }
                     }
                 }
@@ -276,11 +270,6 @@ struct FlashcardDisplayView: View {
             }
         }
         .padding(.horizontal, 20)
-        .onChange(of: showAnswer) { newValue in
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                isFlipped = newValue
-            }
-        }
     }
 }
 
@@ -403,7 +392,7 @@ struct EmptyReviewView: View {
                 .foregroundColor(.green)
             
             VStack(spacing: 12) {
-                Text("All caught up! 🎉")
+                Text("All done!")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.primary)
                 
@@ -419,7 +408,6 @@ struct EmptyReviewView: View {
                 .buttonStyle(PrimaryButtonStyle())
                 
                 Button("Finish Session") {
-                    print("🔍 Finish button tapped in EmptyReviewView")
                     if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                        let window = windowScene.windows.first,
                        let rootViewController = window.rootViewController {

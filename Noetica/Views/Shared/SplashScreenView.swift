@@ -17,7 +17,6 @@ struct SplashScreenView: View {
     
     var body: some View {
         ZStack {
-            // Gradient Background
             LinearGradient(
                 colors: [
                     Color.blue.opacity(0.8),
@@ -29,7 +28,6 @@ struct SplashScreenView: View {
             )
             .ignoresSafeArea()
             
-            // Animated particles
             ForEach(0..<20, id: \.self) { index in
                 Circle()
                     .fill(Color.white.opacity(0.1))
@@ -48,11 +46,8 @@ struct SplashScreenView: View {
             }
             
             VStack(spacing: 40) {
-                // Logo Section
                 VStack(spacing: 20) {
-                    // App Icon/Logo
                     ZStack {
-                        // Outer glow
                         Circle()
                             .fill(
                                 RadialGradient(
@@ -64,7 +59,6 @@ struct SplashScreenView: View {
                             )
                             .frame(width: 160, height: 160)
                         
-                        // Main logo background
                         RoundedRectangle(cornerRadius: 28)
                             .fill(
                                 LinearGradient(
@@ -76,7 +70,6 @@ struct SplashScreenView: View {
                             .frame(width: 120, height: 120)
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
                         
-                        // Logo icon
                         Image(systemName: "brain.head.profile")
                             .font(.system(size: 50, weight: .medium))
                             .foregroundStyle(
@@ -90,7 +83,6 @@ struct SplashScreenView: View {
                     .scaleEffect(logoScale)
                     .opacity(logoOpacity)
                     
-                    // App Name
                     VStack(spacing: 8) {
                         Text("Noetica")
                             .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -105,9 +97,7 @@ struct SplashScreenView: View {
                     .opacity(textOpacity)
                 }
                 
-                // Loading indicator
                 VStack(spacing: 16) {
-                    // Custom loading animation
                     HStack(spacing: 8) {
                         ForEach(0..<3) { index in
                             Circle()
@@ -134,7 +124,6 @@ struct SplashScreenView: View {
         .onAppear {
             startAnimations()
             
-            // Auto-dismiss after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                 withAnimation(.easeInOut(duration: 0.8)) {
                     showContent = true
@@ -147,18 +136,15 @@ struct SplashScreenView: View {
     }
     
     private func startAnimations() {
-        // Logo animation
         withAnimation(.spring(response: 1.2, dampingFraction: 0.8, blendDuration: 0)) {
             logoScale = 1.0
             logoOpacity = 1.0
         }
         
-        // Text animation with delay
         withAnimation(.easeInOut(duration: 0.8).delay(0.5)) {
             textOpacity = 1.0
         }
         
-        // Particles animation with delay
         withAnimation(.easeInOut(duration: 1.0).delay(0.8)) {
             particleOpacity = 1.0
         }

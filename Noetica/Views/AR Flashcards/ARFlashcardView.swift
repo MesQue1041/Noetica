@@ -126,7 +126,6 @@ struct ARFlashcardView: UIViewRepresentable {
             for anchor in anchors {
                 if let planeAnchor = anchor as? ARPlaneAnchor {
                     if planeAnchor.alignment == .horizontal {
-                        print("✅ Horizontal plane detected")
                         
                         let anchorEntity = AnchorEntity(.plane(.horizontal,
                                                               classification: .any,
@@ -139,7 +138,6 @@ struct ARFlashcardView: UIViewRepresentable {
                             currentFlashcardEntity = ARFlashcardEntity(flashcard: flashcards[currentIndex])
                             if let flashcardEntity = currentFlashcardEntity {
                                 anchorEntity.addChild(flashcardEntity)
-                                print("📱 Flashcard added to AR scene")
                             }
                         }
                         

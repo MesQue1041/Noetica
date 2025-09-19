@@ -26,7 +26,6 @@ struct AuthView: View {
         } else {
             GeometryReader { geometry in
                 ZStack {
-                    // Dynamic gradient background
                     LinearGradient(
                         colors: [
                             Color.blue.opacity(0.1),
@@ -38,7 +37,6 @@ struct AuthView: View {
                     )
                     .ignoresSafeArea()
                     
-                    // Floating elements
                     ForEach(0..<8, id: \.self) { index in
                         Circle()
                             .fill(Color.blue.opacity(0.05))
@@ -52,11 +50,9 @@ struct AuthView: View {
                     
                     ScrollView {
                         VStack(spacing: 0) {
-                            // Header section
                             VStack(spacing: 24) {
                                 Spacer(minLength: 60)
                                 
-                                // Logo and title
                                 VStack(spacing: 16) {
                                     ZStack {
                                         Circle()
@@ -94,7 +90,6 @@ struct AuthView: View {
                             }
                             .padding(.bottom, 40)
                             
-                            // Auth card
                             VStack(spacing: 24) {
                                 VStack(spacing: 20) {
                                     ModernTextField(
@@ -138,7 +133,6 @@ struct AuthView: View {
                                 }
                                 
                                 VStack(spacing: 16) {
-                                    // Main action button
                                     Button(action: handleAuth) {
                                         HStack(spacing: 12) {
                                             if authService.isLoading {
@@ -175,7 +169,6 @@ struct AuthView: View {
                                     .scaleEffect(authService.isLoading ? 0.98 : 1.0)
                                     .animation(.easeInOut(duration: 0.1), value: authService.isLoading)
                                     
-                                    // Toggle mode button
                                     Button(action: toggleMode) {
                                         HStack(spacing: 8) {
                                             Text(isLogin ? "New to Noetica?" : "Already have an account?")
@@ -189,7 +182,6 @@ struct AuthView: View {
                                     }
                                 }
                                 
-                                // Error message
                                 if !authService.errorMessage.isEmpty {
                                     HStack(spacing: 8) {
                                         Image(systemName: authService.errorMessage.contains("successfully") ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")

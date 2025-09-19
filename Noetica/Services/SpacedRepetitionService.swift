@@ -50,7 +50,6 @@ class SpacedRepetitionService: ObservableObject {
     private init() {}
     
     func reviewFlashcard(_ flashcard: Flashcard, quality: ReviewQuality) {
-        print("🔍 SpacedRepetitionService: Starting review")
         let now = Date()
         
         flashcard.lastReviewDate = now
@@ -77,15 +76,12 @@ class SpacedRepetitionService: ObservableObject {
         
         flashcard.difficultyRating = Int16(5 - quality.rawValue)
         
-        print("🔍 Updated flashcard properties")
         
         if let deck = flashcard.deck {
             updateDeckMastery(deck)
-            print("🔍 Updated deck mastery")
         }
         
         coreDataService.save()
-        print("✅ Flashcard reviewed and saved successfully")
     }
 
 
@@ -145,7 +141,7 @@ class SpacedRepetitionService: ObservableObject {
         ]
         
         do {
-            return try CoreDataService.shared.context.fetch(request) // ← Change this
+            return try CoreDataService.shared.context.fetch(request)
         } catch {
             print("Error fetching due flashcards: \(error)")
             return []
@@ -168,7 +164,7 @@ class SpacedRepetitionService: ObservableObject {
         request.fetchLimit = limit
         
         do {
-            return try CoreDataService.shared.context.fetch(request) // ← Change this
+            return try CoreDataService.shared.context.fetch(request)
         } catch {
             print("Error fetching new flashcards: \(error)")
             return []
@@ -185,7 +181,6 @@ class SpacedRepetitionService: ObservableObject {
             
             guard !flashcards.isEmpty else {
                 deck.mastery = 0.0
-                print("📊 Deck mastery updated: 0.0% (no cards)")
                 return
             }
             
@@ -199,10 +194,8 @@ class SpacedRepetitionService: ObservableObject {
             let newMastery = Double(masteredCards) / Double(totalCards)
             deck.mastery = newMastery
             
-            print("📊 Deck '\(deck.name ?? "Unknown")' mastery updated: \(Int(newMastery * 100))% (\(masteredCards)/\(totalCards))")
             
         } catch {
-            print("❌ Error fetching flashcards for mastery calculation: \(error)")
             deck.mastery = 0.0
         }
     }
@@ -219,7 +212,7 @@ class SpacedRepetitionService: ObservableObject {
             request.predicate = NSPredicate(format: "deck == %@", deck)
         }
         
-        let totalCards = (try? CoreDataService.shared.context.count(for: request)) ?? 0 // ← Change this
+        let totalCards = (try? CoreDataService.shared.context.count(for: request)) ?? 0
         let reviewedToday = getTodayReviewCount(for: deck)
         
         return StudySessionStats(
@@ -247,7 +240,7 @@ class SpacedRepetitionService: ObservableObject {
         
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         
-        return (try? CoreDataService.shared.context.count(for: request)) ?? 0 // ← Change this
+        return (try? CoreDataService.shared.context.count(for: request)) ?? 0 
     }
 
 }

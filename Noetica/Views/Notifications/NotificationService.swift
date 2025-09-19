@@ -104,7 +104,7 @@ class NotificationService: NSObject, ObservableObject {
         guard isAuthorized else { return }
         
         let content = UNMutableNotificationContent()
-        content.title = "🎯 Session Starting Now!"
+        content.title = "Session Starting Now!"
         
         if event.type == .studySession {
             content.body = "Your '\(event.subject ?? "Study")' session is ready to begin"
@@ -116,7 +116,6 @@ class NotificationService: NSObject, ObservableObject {
         content.badge = 1
         content.categoryIdentifier = "SESSION_START"
         
-        // Add action button
         let startAction = UNNotificationAction(
             identifier: "START_SESSION",
             title: "Start Now",

@@ -8,7 +8,6 @@
 import SwiftUI
 import ARKit
 import RealityKit
-import CoreData
 
 struct ARFlashcardReviewView: View {
     let flashcards: [Flashcard]
@@ -135,36 +134,7 @@ struct ARViewContainer: UIViewRepresentable {
         config.planeDetection = [.horizontal]
         arView.session.run(config)
         
-        // Add tap gesture to flip card
-        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-        arView.addGestureRecognizer(tapGesture)
-        
         return arView
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject {
-        var parent: ARViewContainer
-        
-        init(_ parent: ARViewContainer) {
-            self.parent = parent
-        }
-        
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            guard let arView = gesture.view as? ARView else { return }
-            
-            let location = gesture.location(in: arView)
-            
-            if let entity = arView.entity(at: location) as? ARFlashcardEntity {
-                entity.flipCard()
-                DispatchQueue.main.async {
-                    self.parent.showAnswer.toggle()
-                }
-            }
-        }
     }
     
     func updateUIView(_ uiView: ARView, context: Context) {
@@ -184,38 +154,15 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     private func createFlashcardEntity(frontText: String, backText: String, showAnswer: Bool) -> Entity {
-        // Create a temporary flashcard object for the AR entity
-        let tempFlashcard = TempFlashcard(frontText: frontText, backText: backText)
+        let cardMesh = MeshResource.generateBox(width: 0.3, height: 0.2, depth: 0.01)
         
-        // Create the AR flashcard entity with proper text rendering
-        let arEntity = ARFlashcardEntity(flashcard: tempFlashcard)
+        let material = UnlitMaterial(color: showAnswer ? .green : .blue)
         
-        // Set the correct side based on showAnswer
-        if showAnswer != arEntity.isShowingFront {
-            arEntity.flipCard()
-        }
+        let cardEntity = ModelEntity(mesh: cardMesh, materials: [material])
         
-        return arEntity
-    }
-}
-
-// Temporary flashcard class to work with ARFlashcardEntity
-class TempFlashcard: Flashcard {
-    private let _frontText: String = ""
-    private let _backText: String = ""
-    
-    convenience init(frontText: String, backText: String) {
-        self.init(entity: NSEntityDescription(), insertInto: nil)
-        self.setValue(frontText, forKey: "frontText")
-        self.setValue(backText, forKey: "backText")
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    override init(entity: NSEntityDescription, insertInto context: NSManagedObjectContext?) {
-        super.init(entity: entity, insertInto: context)
+        cardEntity.generateCollisionShapes(recursive: true)
+        
+        return cardEntity
     }
     
     struct ARFlashcardReviewView_Previews: PreviewProvider {

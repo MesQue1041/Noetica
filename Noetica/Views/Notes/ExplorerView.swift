@@ -70,79 +70,116 @@ struct NotesExplorerView: View {
     }
     
     var body: some View {
+        mainContent
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showingCreateSubject) {
+                CreatePageView()
+            }
+            .sheet(isPresented: $showingCreateDeck) {
+                DeckCreationView()
+            }
+            .onAppear {
+                statsService.updateStats()
+            }
+    }
+    
+    private var mainContent: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                ExplorerHeaderSection(
-                    selectedMode: $selectedMode,
-                    searchText: $searchText,
-                    showingCreateSubject: $showingCreateSubject,
-                    showingCreateDeck: $showingCreateDeck
-                )
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        if selectedMode == .notes {
-                            if filteredSubjects.isEmpty {
-                                ModernEmptyStateView(
-                                    icon: "doc.text",
-                                    title: "No Notes Yet",
-                                    subtitle: "Create your first note to get started",
-                                    buttonTitle: "Create Note",
-                                    action: { showingCreateSubject = true }
-                                )
-                            } else {
-                                LazyVGrid(
-                                    columns: [
-                                        GridItem(.flexible(), spacing: 20),
-                                        GridItem(.flexible(), spacing: 20)
-                                    ],
-                                    spacing: 24
-                                ) {
-                                    ForEach(filteredSubjects) { subject in
-                                        ModernExplorerSubjectTile(subject: subject)
-                                    }
-                                }
-                            }
-                        } else {
-                            if filteredDecks.isEmpty {
-                                ModernEmptyStateView(
-                                    icon: "rectangle.stack",
-                                    title: "No Decks Yet",
-                                    subtitle: "Create your first flashcard deck",
-                                    buttonTitle: "Create Deck",
-                                    action: { showingCreateDeck = true }
-                                )
-                            } else {
-                                LazyVGrid(
-                                    columns: [
-                                        GridItem(.flexible(), spacing: 20),
-                                        GridItem(.flexible(), spacing: 20)
-                                    ],
-                                    spacing: 24
-                                ) {
-                                    ForEach(filteredDecks) { deck in
-                                        ModernExplorerDeckTile(deck: deck)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 32)
-                    .padding(.bottom, 120)
-                }
-                .background(Color(UIColor.systemGroupedBackground))
+                headerSection
+                contentScrollView
             }
         }
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showingCreateSubject) {
-            CreatePageView()
+    }
+    
+    private var headerSection: some View {
+        ExplorerHeaderSection(
+            selectedMode: $selectedMode,
+            searchText: $searchText,
+            showingCreateSubject: $showingCreateSubject,
+            showingCreateDeck: $showingCreateDeck
+        )
+    }
+    
+    private var contentScrollView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                contentGrid
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 120)
         }
-        .sheet(isPresented: $showingCreateDeck) {
-            DeckCreationView()
+        .background(Color(UIColor.systemGroupedBackground))
+    }
+    
+    @ViewBuilder
+    private var contentGrid: some View {
+        if selectedMode == .notes {
+            notesContent
+        } else {
+            decksContent
         }
-        .onAppear {
-            statsService.updateStats()
+    }
+    
+    @ViewBuilder
+    private var notesContent: some View {
+        if filteredSubjects.isEmpty {
+            notesEmptyState
+        } else {
+            notesGrid
+        }
+    }
+    
+    @ViewBuilder
+    private var decksContent: some View {
+        if filteredDecks.isEmpty {
+            decksEmptyState
+        } else {
+            decksGrid
+        }
+    }
+    
+    private var notesEmptyState: some View {
+        ModernEmptyStateView(
+            icon: "doc.text",
+            title: "No Notes Yet",
+            subtitle: "Create your first note to get started",
+            buttonTitle: "Create Note",
+            action: { showingCreateSubject = true }
+        )
+    }
+    
+    private var decksEmptyState: some View {
+        ModernEmptyStateView(
+            icon: "rectangle.stack",
+            title: "No Decks Yet",
+            subtitle: "Create your first flashcard deck",
+            buttonTitle: "Create Deck",
+            action: { showingCreateDeck = true }
+        )
+    }
+    
+    private var gridColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 16),
+            GridItem(.flexible(), spacing: 16)
+        ]
+    }
+    
+    private var notesGrid: some View {
+        LazyVGrid(columns: gridColumns, spacing: 20) {
+            ForEach(filteredSubjects) { subject in
+                ModernExplorerSubjectTile(subject: subject)
+            }
+        }
+    }
+    
+    private var decksGrid: some View {
+        LazyVGrid(columns: gridColumns, spacing: 20) {
+            ForEach(filteredDecks) { deck in
+                ModernExplorerDeckTile(deck: deck)
+            }
         }
     }
     
@@ -174,22 +211,22 @@ struct ModernEmptyStateView: View {
         VStack(spacing: 32) {
             VStack(spacing: 24) {
                 ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 120, height: 120)
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.blue.opacity(0.08))
+                        .frame(width: 100, height: 100)
                     
                     Image(systemName: icon)
-                        .font(.system(size: 48, weight: .medium))
+                        .font(.system(size: 40, weight: .medium))
                         .foregroundColor(.blue)
                 }
                 
                 VStack(spacing: 12) {
                     Text(title)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .semibold))
                         .foregroundColor(.primary)
                     
                     Text(subtitle)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
@@ -197,20 +234,20 @@ struct ModernEmptyStateView: View {
             }
             
             Button(action: action) {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
                     
                     Text(buttonTitle)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.blue)
-                        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.blue)
+                        .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -228,109 +265,182 @@ struct ExplorerHeaderSection: View {
     @Binding var showingCreateDeck: Bool
     
     var body: some View {
-        VStack(spacing: 32) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Explorer")
-                        .font(.system(size: 40, weight: .black, design: .rounded))
-                        .foregroundColor(.primary)
-                    
-                    Text("Discover & organize your knowledge")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    if selectedMode == .notes {
-                        showingCreateSubject = true
-                    } else {
-                        showingCreateDeck = true
-                    }
-                }) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.blue)
-                            .frame(width: 52, height: 52)
-                            .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 6)
-                        
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-                .scaleEffect(1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedMode)
-            }
+        headerContent
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 20)
+            .background(headerBackground)
+    }
+    
+    private var headerContent: some View {
+        VStack(spacing: 24) {
+            topSection
+            controlsSection
+        }
+    }
+    
+    private var headerBackground: some View {
+        Rectangle()
+            .fill(Color(.systemGroupedBackground))
+            .ignoresSafeArea()
+    }
+    
+    private var topSection: some View {
+        HStack {
+            titleSection
+            Spacer()
+            addButton
+        }
+    }
+    
+    private var titleSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Explorer")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundColor(.primary)
             
-            VStack(spacing: 20) {
-                HStack(spacing: 8) {
-                    ForEach(ExplorerMode.allCases, id: \.self) { mode in
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                selectedMode = mode
-                            }
-                        }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: mode.icon)
-                                    .font(.system(size: 18, weight: .semibold))
-                                
-                                Text(mode.title)
-                                    .font(.system(size: 17, weight: .bold))
-                            }
-                            .foregroundColor(selectedMode == mode ? .white : .primary)
-                            .padding(.horizontal, 28)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(selectedMode == mode ? Color.blue : Color(.systemBackground))
-                                    .shadow(color: selectedMode == mode ? Color.blue.opacity(0.3) : Color.black.opacity(0.08), radius: selectedMode == mode ? 8 : 4, x: 0, y: selectedMode == mode ? 4 : 2)
-                            )
-                            .scaleEffect(selectedMode == mode ? 1.02 : 1.0)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-                
-                HStack(spacing: 16) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Search \(selectedMode.title.lowercased())...", text: $searchText)
-                        .font(.system(size: 17, weight: .medium))
-                        .textFieldStyle(PlainTextFieldStyle())
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                searchText = ""
-                            }
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
-                )
+            Text("Organize your knowledge")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var addButton: some View {
+        Button(action: addButtonAction) {
+            addButtonContent
+        }
+    }
+    
+    private var addButtonContent: some View {
+        Image(systemName: "plus")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(addButtonBackground)
+    }
+    
+    private var addButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(.blue)
+            .shadow(color: .blue.opacity(0.25), radius: 6, x: 0, y: 3)
+    }
+    
+    private func addButtonAction() {
+        if selectedMode == .notes {
+            showingCreateSubject = true
+        } else {
+            showingCreateDeck = true
+        }
+    }
+    
+    private var controlsSection: some View {
+        VStack(spacing: 16) {
+            modeButtons
+            searchBar
+        }
+    }
+    
+    private var modeButtons: some View {
+        HStack(spacing: 12) {
+            ForEach(ExplorerMode.allCases, id: \.self) { mode in
+                modeButton(for: mode)
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
-        .background(
-            Rectangle()
-                .fill(Color(.systemGroupedBackground))
-                .ignoresSafeArea()
-        )
+    }
+    
+    private func modeButton(for mode: ExplorerMode) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                selectedMode = mode
+            }
+        }) {
+            modeButtonContent(for: mode)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func modeButtonContent(for mode: ExplorerMode) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: mode.icon)
+                .font(.system(size: 16, weight: .semibold))
+            
+            Text(mode.title)
+                .font(.system(size: 16, weight: .semibold))
+        }
+        .foregroundColor(selectedMode == mode ? .white : .primary)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(modeButtonBackground(for: mode))
+    }
+    
+    @ViewBuilder
+    private func modeButtonBackground(for mode: ExplorerMode) -> some View {
+        if selectedMode == mode {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.blue)
+                .overlay(modeButtonStroke(for: mode))
+                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+        } else {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(modeButtonStroke(for: mode))
+                .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+        }
+    }
+    
+    private func modeButtonStroke(for mode: ExplorerMode) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .stroke(.primary.opacity(selectedMode == mode ? 0 : 0.06), lineWidth: 1)
+    }
+    
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            searchIcon
+            searchField
+            clearButton
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(searchBarBackground)
+    }
+    
+    private var searchIcon: some View {
+        Image(systemName: "magnifyingglass")
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(.secondary)
+    }
+    
+    private var searchField: some View {
+        TextField("Search \(selectedMode.title.lowercased())...", text: $searchText)
+            .font(.system(size: 16, weight: .medium))
+            .textFieldStyle(PlainTextFieldStyle())
+    }
+    
+    @ViewBuilder
+    private var clearButton: some View {
+        if !searchText.isEmpty {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    searchText = ""
+                }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var searchBarBackground: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(.ultraThinMaterial)
+            .overlay(searchBarStroke)
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+    }
+    
+    private var searchBarStroke: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .stroke(.primary.opacity(0.06), lineWidth: 1)
     }
 }
 struct ModernExplorerSubjectTile: View {
@@ -345,37 +455,26 @@ struct ModernExplorerSubjectTile: View {
             VStack(spacing: 0) {
                 VStack(spacing: 20) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(subject.color.opacity(0.15))
-                            .frame(width: 72, height: 72)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(subject.color.opacity(0.1))
+                            .frame(width: 56, height: 56)
                         
                         Image(systemName: subject.imageName ?? "book.fill")
-                            .font(.system(size: 28, weight: .semibold))
+                            .font(.system(size: 24, weight: .medium))
                             .foregroundColor(subject.color)
                     }
                     
                     VStack(spacing: 8) {
                         Text(subject.name)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
+                            .minimumScaleFactor(0.85)
                         
-                        HStack(spacing: 6) {
-                            Image(systemName: "doc.text.fill")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(subject.color)
-                            
-                            Text("\(subject.noteCount) notes")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(subject.color.opacity(0.1))
-                        )
+                        Text("\(subject.noteCount) notes")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
                     }
                 }
                 .padding(.top, 28)
@@ -386,31 +485,30 @@ struct ModernExplorerSubjectTile: View {
                 HStack {
                     Spacer()
                     
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(subject.color)
-                        .opacity(0.8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
                     
                     Spacer()
                 }
                 .padding(.bottom, 20)
             }
-            .frame(height: 200)
+            .frame(height: 180)
             .background(
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(subject.color.opacity(0.15), lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color(.systemGray5), lineWidth: 0.5)
                     )
+                    .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
             )
-            .scaleEffect(isPressed ? 0.96 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
         }, perform: {})
@@ -435,46 +533,35 @@ struct ModernExplorerDeckTile: View {
                 VStack(spacing: 20) {
                     ZStack {
                         Circle()
-                            .stroke(deck.color.opacity(0.2), lineWidth: 8)
-                            .frame(width: 80, height: 80)
+                            .stroke(Color(.systemGray5), lineWidth: 4)
+                            .frame(width: 56, height: 56)
                         
                         Circle()
                             .trim(from: 0, to: deck.masteryLevel)
                             .stroke(
                                 deck.color,
-                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                                style: StrokeStyle(lineWidth: 4, lineCap: .round)
                             )
-                            .frame(width: 80, height: 80)
+                            .frame(width: 56, height: 56)
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeInOut(duration: 1.0), value: deck.masteryLevel)
+                            .animation(.easeInOut(duration: 0.8), value: deck.masteryLevel)
                         
-                        Image(systemName: "rectangle.stack.fill")
-                            .font(.system(size: 24, weight: .semibold))
+                        Text("\(Int(deck.masteryLevel * 100))")
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(deck.color)
                     }
                     
                     VStack(spacing: 8) {
                         Text(deck.name)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
+                            .minimumScaleFactor(0.85)
                         
-                        HStack(spacing: 6) {
-                            Image(systemName: "rectangle.stack.fill")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(deck.color)
-                            
-                            Text("\(deck.cardCount) cards")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(deck.color.opacity(0.1))
-                        )
+                        Text("\(deck.cardCount) cards")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
                     }
                 }
                 .padding(.top, 28)
@@ -483,43 +570,41 @@ struct ModernExplorerDeckTile: View {
                 Spacer()
                 
                 HStack {
-                    Text("\(Int(deck.masteryLevel * 100))%")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(deck.color)
-                                .shadow(color: deck.color.opacity(0.3), radius: 4, x: 0, y: 2)
-                        )
+                    HStack(spacing: 4) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(deck.color)
+                        
+                        Text("\(Int(deck.masteryLevel * 100))%")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(deck.color)
+                    }
                     
                     Spacer()
                     
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(deck.color)
-                        .opacity(0.8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }
-            .frame(height: 200)
+            .frame(height: 180)
             .background(
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(deck.color.opacity(0.15), lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color(.systemGray5), lineWidth: 0.5)
                     )
+                    .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
             )
-            .scaleEffect(isPressed ? 0.96 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
         }, perform: {})
@@ -632,30 +717,55 @@ struct NoteDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(note.title ?? "Untitled Note")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                if let subject = note.subject {
-                    Text(subject)
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let subject = note.subject {
+                        HStack {
+                            Text(subject)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(.blue.opacity(0.08))
+                                )
+                            
+                            Spacer()
+                        }
+                    }
+                    
+                    Text(note.title ?? "Untitled Note")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(nil)
+                    
+                    if let dateModified = note.dateModified {
+                        Text(dateModified.formatted(date: .abbreviated, time: .shortened))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(.bottom, 24)
+                
+                Rectangle()
+                    .fill(Color(.systemGray5))
+                    .frame(height: 0.5)
+                    .padding(.bottom, 24)
                 
                 Text(note.body ?? "")
-                    .font(.body)
-                    .padding(.top, 8)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.primary)
+                    .lineSpacing(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Spacer()
+                Spacer(minLength: 100)
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
         }
-        .navigationTitle("Note")
+        .background(Color(.systemBackground))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

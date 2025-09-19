@@ -32,17 +32,17 @@ struct MainTabView: View {
                        .environmentObject(statsService)
                        .environmentObject(authService)
                    
-                   PomodoroTimerView(preloadedEvent: nil)
+                   CalendarView()
                        .tabItem { EmptyView() }
                        .tag(2)
                        .environment(\.managedObjectContext, CoreDataService.shared.context)
+                       .environmentObject(statsService)
                        .environmentObject(authService)
                    
-                   CalendarView()
+                   PomodoroTimerView(preloadedEvent: nil)
                        .tabItem { EmptyView() }
                        .tag(3)
                        .environment(\.managedObjectContext, CoreDataService.shared.context)
-                       .environmentObject(statsService)
                        .environmentObject(authService)
                    
                    StatsView()
@@ -178,7 +178,7 @@ struct MainTabView: View {
                     )
             )
             .onTapGesture {
-                showPomodoroView = true 
+                showPomodoroView = true
             }
         }
         .padding(.horizontal, 20)

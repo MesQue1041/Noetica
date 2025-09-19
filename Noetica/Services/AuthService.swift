@@ -174,7 +174,6 @@ class AuthService: ObservableObject {
     }
 }
 
-// MARK: - Profile Updates
 extension AuthService {
     func updateDisplayName(to newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let user = Auth.auth().currentUser else {
@@ -194,7 +193,6 @@ extension AuthService {
                     if let reloadError = reloadError {
                         completion(.failure(reloadError))
                     } else {
-                        // Update published state
                         self?.user = Auth.auth().currentUser
                         completion(.success(()))
                     }

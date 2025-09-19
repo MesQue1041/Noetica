@@ -61,8 +61,6 @@ struct PomodoroTimerView: View {
                     
                     controlButtonsSection
                     
-                    sessionProgressSection
-                    
                     if !isActive && currentPomodoroSession == nil {
                         quickActionsSection
                     }
@@ -126,20 +124,17 @@ struct PomodoroTimerView: View {
                     )
             }
             
-            if linkedCalendarEvent != nil {
-                Label("Linked to calendar event", systemImage: "link.circle")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
         }
     }
     
     private func timerDisplaySection(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 20) {
+        let circleSize = min(geometry.size.width - 80, 280)
+        
+        return VStack(spacing: 0) {
             ZStack {
                 Circle()
                     .stroke(sessionType.color.opacity(0.1), lineWidth: 12)
-                    .frame(width: min(geometry.size.width - 80, 280), height: min(geometry.size.width - 80, 280))
+                    .frame(width: circleSize, height: circleSize)
                 
                 Circle()
                     .trim(from: 0.0, to: CGFloat(progress))
@@ -151,7 +146,7 @@ struct PomodoroTimerView: View {
                         ),
                         style: StrokeStyle(lineWidth: 12, lineCap: .round)
                     )
-                    .frame(width: min(geometry.size.width - 80, 280), height: min(geometry.size.width - 80, 280))
+                    .frame(width: circleSize, height: circleSize)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 1.0), value: progress)
                 
@@ -173,6 +168,7 @@ struct PomodoroTimerView: View {
                         .accessibilityLabel("Session type: \(sessionType.rawValue)")
                 }
             }
+            .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Study timer")
             .accessibilityValue("\(timeString) remaining for \(sessionType.rawValue) session")

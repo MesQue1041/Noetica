@@ -129,9 +129,8 @@ struct CreatePageView: View {
                                 )
                                 
                                 if selectedMode == .note && !predictedSubject.isEmpty {
-                                    ClassificationStatusView(
+                                    MLRecommendationView(
                                         subject: predictedSubject,
-                                        confidence: String(format: "%.0f%%", classificationConfidence * 100),
                                         onSubjectChange: { newSubject in
                                             noteSubject = newSubject
                                         }
@@ -390,51 +389,40 @@ struct CreatePageView: View {
     }
 }
 
-struct ClassificationStatusView: View {
+struct MLRecommendationView: View {
     let subject: String
-    let confidence: String
     let onSubjectChange: (String) -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "brain.head.profile")
+                Image(systemName: "lightbulb.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.orange)
                 
-                Text("AI Classification")
+                Text("ML Recommendation")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
                 
                 Spacer()
-                
-                Text(confidence)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule()
-                            .fill(confidenceColor)
-                    )
             }
             
             HStack {
-                Text("Predicted: ")
+                Text("Recommendation:")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
                 
                 Text(subject)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.orange)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(.blue.opacity(0.1))
+                            .fill(.orange.opacity(0.1))
                             .overlay(
                                 Capsule()
-                                    .stroke(.blue.opacity(0.3), lineWidth: 1)
+                                    .stroke(.orange.opacity(0.3), lineWidth: 1)
                             )
                     )
                 
@@ -444,7 +432,7 @@ struct ClassificationStatusView: View {
                     onSubjectChange(subject)
                 }
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.blue)
+                .foregroundColor(.orange)
             }
         }
         .padding(16)
@@ -453,16 +441,9 @@ struct ClassificationStatusView: View {
                 .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(.blue.opacity(0.2), lineWidth: 1)
+                        .stroke(.orange.opacity(0.2), lineWidth: 1)
                 )
         )
-    }
-    
-    private var confidenceColor: Color {
-        let conf = Double(confidence.replacingOccurrences(of: "%", with: "")) ?? 0
-        if conf > 80 { return .green }
-        if conf > 60 { return .orange }
-        return .red
     }
 }
 

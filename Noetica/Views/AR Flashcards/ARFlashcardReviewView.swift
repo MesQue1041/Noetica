@@ -33,7 +33,6 @@ struct ARFlashcardReviewView: View {
                     .ignoresSafeArea()
                     
                     VStack {
-                        // Top Controls
                         HStack {
                             Button("Close") {
                                 isPresented = false
@@ -53,7 +52,6 @@ struct ARFlashcardReviewView: View {
                         
                         Spacer()
                         
-                        // Bottom Controls
                         if !showAnswer {
                             Button("Show Answer") {
                                 withAnimation {
@@ -132,7 +130,6 @@ struct ARViewContainer: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
         
-        // Configure AR session
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = [.horizontal]
         arView.session.run(config)
@@ -141,40 +138,33 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: ARView, context: Context) {
-        // Clear existing content
         uiView.scene.anchors.removeAll()
         
         guard let flashcard = flashcard else { return }
         
-        // Create the flashcard entity
         let cardEntity = createFlashcardEntity(
             frontText: flashcard.frontText ?? "Question",
             backText: flashcard.backText ?? "Answer",
             showAnswer: showAnswer
         )
         
-        // Create anchor at origin
         let anchor = AnchorEntity(world: [0, 0, -1])
         anchor.addChild(cardEntity)
         uiView.scene.addAnchor(anchor)
     }
     
     private func createFlashcardEntity(frontText: String, backText: String, showAnswer: Bool) -> Entity {
-        // Create a simple box as flashcard
         let cardMesh = MeshResource.generateBox(width: 0.3, height: 0.2, depth: 0.01)
         
-        // Create material - Using UnlitMaterial for better performance
         let material = UnlitMaterial(color: showAnswer ? .green : .blue)
         
         let cardEntity = ModelEntity(mesh: cardMesh, materials: [material])
         
-        // Add collision for tap detection
         cardEntity.generateCollisionShapes(recursive: true)
         
         return cardEntity
     }
     
-    // Preview
     struct ARFlashcardReviewView_Previews: PreviewProvider {
         static var previews: some View {
             ARFlashcardReviewView(

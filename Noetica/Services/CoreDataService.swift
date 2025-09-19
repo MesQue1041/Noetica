@@ -92,7 +92,7 @@ class CoreDataService: ObservableObject {
         } else {
             saveCalendarEvent(event)
             NotificationService.shared.scheduleSessionReminder(for: event, minutesBefore: 10)
-            NotificationService.shared.scheduleSessionStartNotification(for: event) 
+            NotificationService.shared.scheduleSessionStartNotification(for: event)
             return event
         }
     }
